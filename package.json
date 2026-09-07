@@ -1,0 +1,27 @@
+{
+  "name": "anonymity-cyberbullying-research",
+  "version": "1.0.0",
+  "description": "Research platform for investigating anonymity in cyberbullying perpetration",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "lint:frontend": "cd frontend && npm run lint",
+    "test:backend": "cd backend && npm test"
+  },
+  "keywords": [
+    "research",
+    "psychology",
+    "cyberbullying",
+    "anonymity",
+    "academic"
+  ],
+  "author": "SBBWU Research Team",
+  "license": "UNLICENSED"
+}

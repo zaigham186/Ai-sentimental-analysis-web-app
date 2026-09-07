@@ -1,0 +1,170 @@
+================================================================================
+                    CONSENT BUTTON DEBUG CHECKLIST
+================================================================================
+
+PLEASE DO THESE STEPS IN ORDER AND TELL ME WHERE IT FAILS:
+
+================================================================================
+STEP 1: VERIFY SERVERS ARE RUNNING
+================================================================================
+
+Backend Terminal - Should show:
+  ✓ Server running on port 5000
+  ✓ MongoDB connected successfully
+
+Frontend Terminal - Should show:
+  ✓ Ready on http://localhost:3000
+
+✅ YES, both running
+❌ NO → Start them first
+
+================================================================================
+STEP 2: OPEN TEST FILE
+================================================================================
+
+Double-click file:  TEST-NOW.html
+
+OR
+
+Open browser to:  http://localhost:3000/test-api
+
+Click all 3 test buttons:
+  1. Check Environment Variables
+  2. Test Health Endpoint
+  3. Test Consent Endpoint
+
+Result:
+✅ All 3 show SUCCESS → Go to Step 3
+❌ Any fail → STOP and tell me which one failed
+
+================================================================================
+STEP 3: OPEN CONSENT PAGE
+================================================================================
+
+Browser:  http://localhost:3000/consent
+
+Press F12 to open Developer Tools
+Click "Console" tab
+
+================================================================================
+STEP 4: FILL THE FORM
+================================================================================
+
+1. ✅ Check box 1: "I have read and understood..."
+2. ✅ Check box 2: "I agree that my de-identified data..."
+3. ✅ Check box 3: "I understand that I may withdraw..."
+4. ✅ Type name in "Electronic Signature" field
+
+Button should turn blue and enabled.
+
+✅ Button is enabled
+❌ Button is greyed out → Check all 3 boxes are checked
+
+================================================================================
+STEP 5: CLICK THE BUTTON
+================================================================================
+
+Click: "I Agree - Proceed to Registration"
+
+Watch the Console (F12 → Console tab)
+
+================================================================================
+WHAT DO YOU SEE IN CONSOLE?
+================================================================================
+
+Option A - SUCCESS MESSAGES:
+  ✓ "Consent form submitted: {consentGiven: true...}"
+  ✓ "Sending consent to API..."
+  ✓ "Consent API response: {success: true...}"
+  ✓ "Navigating to registration..."
+  → Page redirects to /register
+
+Option B - CORS ERROR:
+  ❌ "Access to fetch...has been blocked by CORS policy"
+  → Backend not configured properly
+  → TELL ME you see this error
+
+Option C - NETWORK ERROR:
+  ❌ "Failed to fetch"
+  ❌ "NetworkError"
+  → Backend not running or wrong URL
+  → TELL ME you see this error
+
+Option D - API ERROR:
+  ❌ "API returned error: ..."
+  → Backend returned an error
+  → TELL ME what error message
+
+Option E - NO MESSAGES:
+  ❌ Nothing happens, no console messages
+  → JavaScript error or form not submitting
+  → Check Console for red error messages
+  → TELL ME what red error you see
+
+================================================================================
+STEP 6: WHAT HAPPENS ON PAGE?
+================================================================================
+
+Option A - SUCCESS:
+  ✅ Blue info box appears: "Debug: Submitting consent..."
+  ✅ Changes to: "Debug: Sending to backend API..."
+  ✅ Changes to: "Debug: Consent accepted! Redirecting..."
+  ✅ Page URL changes to: http://localhost:3000/register
+
+Option B - ERROR BOX:
+  ❌ Red error box appears with message
+  → TELL ME the error message
+
+Option C - NOTHING:
+  ❌ Button just "spins" or nothing happens
+  → Check Console (F12) for errors
+  → TELL ME what you see
+
+================================================================================
+TELL ME EXACTLY WHAT HAPPENS AT EACH STEP
+================================================================================
+
+When you click the button, copy and paste here:
+
+1. What do you see in the Console (F12)?
+
+
+2. What do you see on the page (any colored boxes)?
+
+
+3. Does the URL change? If yes, to what?
+
+
+4. Are there any RED errors in the Console?
+
+
+================================================================================
+QUICK TESTS YOU CAN RUN RIGHT NOW
+================================================================================
+
+Test 1: Open browser to:  http://localhost:3000/test-api
+        Click all 3 buttons
+        → Do they all show SUCCESS?
+
+Test 2: Open:  TEST-NOW.html (double-click the file)
+        Click all 3 buttons
+        → Do they all show SUCCESS?
+
+Test 3: Open Console (F12) on consent page BEFORE clicking
+        → Are there any RED errors already?
+
+Test 4: In Console, type:  process.env.NEXT_PUBLIC_API_URL
+        → Does it show:  http://localhost:5000
+           OR does it show:  undefined
+
+================================================================================
+                        WAITING FOR YOUR RESPONSE
+================================================================================
+
+Please do the steps above and tell me:
+- Which step fails?
+- What error do you see?
+- What messages appear in Console?
+- What happens on the page?
+
+Then I can fix the exact issue!

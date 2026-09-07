@@ -1,0 +1,11 @@
+# Models directory
+# Mongoose models will be implemented in Phase 2
+# Planned models:
+# - Participant
+# - VideoResponse
+# - Questionnaire
+# - QuestionnaireResponse
+# - Coding
+# - Admin
+# - AuditLog
+# - StudySettings
