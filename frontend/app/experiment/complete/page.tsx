@@ -73,43 +73,57 @@ export default function ExperimentCompletePage() {
   if (completed) {
     return (
       <PageContainer
-        title="Experiment Complete"
-        description="Thank you for your participation"
+        title="Thank You!"
+        description="Your participation is complete"
       >
         <div className="max-w-3xl mx-auto">
           <Card>
             <CardBody>
-              <div className="text-center py-8">
-                <div className="mb-6">
-                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 mb-4">
-                    <span className="text-5xl">✓</span>
+              <div className="text-center py-12">
+                <div className="mb-8">
+                  <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-green-100 mb-6">
+                    <span className="text-6xl">✓</span>
                   </div>
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                  <h2 className="text-4xl font-bold text-gray-900 mb-4">
                     Experiment Complete!
                   </h2>
-                  <p className="text-lg text-gray-700">
-                    You have successfully completed the video response experiment.
+                  <p className="text-xl text-gray-700 mb-6">
+                    Thank you for completing all video scenarios and providing your responses.
                   </p>
                 </div>
 
-                <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
-                  <p className="text-gray-800 mb-4">
-                    <strong>What's Next:</strong>
+                <div className="bg-green-50 border-l-4 border-green-600 p-6 mb-8 text-left">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                    Your Contribution Matters
+                  </h3>
+                  <p className="text-gray-700 mb-3">
+                    Your honest responses will contribute to important research on cyberbullying behavior 
+                    and its psychological correlates.
                   </p>
                   <p className="text-gray-700">
-                    Please proceed to complete the psychological questionnaires. 
-                    This will take approximately 20-25 minutes.
+                    All your data has been securely recorded and will be analyzed to help us better 
+                    understand online behavior patterns.
                   </p>
                 </div>
 
-                <Alert variant="info" className="mb-6">
-                  <strong>Phase 6 Notice:</strong> Questionnaires will be implemented in the next phase. 
-                  For now, please return to your dashboard.
-                </Alert>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                    What Happens Next?
+                  </h4>
+                  <p className="text-gray-700">
+                    Your participation in this study is now complete. Your responses have been saved 
+                    and you may now close this window or return to the dashboard.
+                  </p>
+                </div>
 
-                <Button onClick={() => router.push('/participant')} size="lg">
-                  Return to Dashboard
-                </Button>
+                <div className="space-y-3">
+                  <Button onClick={() => router.push('/participant')} size="lg" className="w-full">
+                    Return to Dashboard
+                  </Button>
+                  <p className="text-sm text-gray-600">
+                    If you have any questions about this research, please contact the research team.
+                  </p>
+                </div>
               </div>
             </CardBody>
           </Card>
@@ -170,11 +184,11 @@ export default function ExperimentCompletePage() {
 
               <div className="bg-blue-50 border-l-4 border-blue-600 p-4">
                 <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                  Next Steps
+                  Finalizing Your Participation
                 </h4>
                 <p className="text-gray-700">
-                  Click the button below to finalize your experiment participation and proceed to 
-                  the next phase of the study.
+                  Click the button below to complete your participation in this study. 
+                  Your responses have been recorded and will be used for research purposes.
                 </p>
               </div>
 
@@ -191,7 +205,7 @@ export default function ExperimentCompletePage() {
                       Completing...
                     </>
                   ) : (
-                    'Complete Experiment & Continue'
+                    'Complete Participation'
                   )}
                 </Button>
               </div>

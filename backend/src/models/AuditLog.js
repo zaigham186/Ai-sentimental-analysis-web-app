@@ -21,6 +21,8 @@ const auditLogSchema = new mongoose.Schema({
       values: [
         'auth',           // Login, logout, password changes
         'participant',    // Participant registration, withdrawal
+        'assignment',     // Condition assignment
+        'experiment',     // Experiment actions (ADDED)
         'video',          // Video management
         'questionnaire',  // Questionnaire management
         'response',       // Response submissions

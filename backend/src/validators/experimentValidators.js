@@ -7,12 +7,12 @@ const { body, validationResult } = require('express-validator');
 
 /**
  * Video response validation
+ * UPDATED: Removed minimum length restriction - allow any length response
  */
 const experimentResponseValidation = [
   body('responseText')
     .trim()
     .notEmpty().withMessage('Response text is required')
-    .isLength({ min: 10 }).withMessage('Response must be at least 10 characters')
     .isLength({ max: 5000 }).withMessage('Response cannot exceed 5000 characters'),
 
   body('responseTime')

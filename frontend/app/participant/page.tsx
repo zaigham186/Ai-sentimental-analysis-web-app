@@ -211,16 +211,6 @@ export default function ParticipantPage() {
                   Start Experiment
                 </Button>
               </div>
-
-              <div className="flex items-center gap-4 p-4 bg-gray-50 border border-gray-200 rounded-lg opacity-50">
-                <div className="flex-shrink-0 w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-white font-semibold">
-                  4
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">Questionnaires</h3>
-                  <p className="text-sm text-gray-600">Complete experiment first</p>
-                </div>
-              </div>
             </div>
           </CardBody>
         </Card>

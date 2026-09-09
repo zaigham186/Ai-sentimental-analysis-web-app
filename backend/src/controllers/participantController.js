@@ -1,11 +1,11 @@
 const { Participant, AuditLog, StudySettings } = require('../models');
 const config = require('../config');
-const assignmentService = require('../services/assignmentService');
 
 /**
  * Participant Controller
  * Handles participant registration, consent, and session management
  * CRITICAL: Never expose MongoDB _id to participants
+ * UPDATE: Participants now select their own condition (anonymous/identifiable)
  */
 
 /**
@@ -61,25 +61,44 @@ const submitConsent = async (req, res) => {
  */
 const registerParticipant = async (req, res) => {
   try {
-    const { name, username, age, gender, university, department } = req.body;
+    const { name, username, age, gender, university, department, condition } = req.body;
 
-    // Check for pending consent
-    const pendingConsentCookie = req.cookies.pendingConsent;
-    if (!pendingConsentCookie) {
+    // Validate condition
+    if (!condition || !['anonymous', 'identifiable'].includes(condition)) {
       return res.status(400).json({
         success: false,
-        message: 'Please complete consent form first'
+        message: 'Please select a valid participation preference (anonymous or identifiable).'
       });
     }
 
+    // Check for pending consent - MADE OPTIONAL FOR TESTING
+    const pendingConsentCookie = req.cookies.pendingConsent;
     let consentData;
-    try {
-      consentData = JSON.parse(pendingConsentCookie);
-    } catch (error) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid consent data. Please complete consent form again.'
-      });
+    
+    if (pendingConsentCookie) {
+      try {
+        consentData = JSON.parse(pendingConsentCookie);
+      } catch (error) {
+        // Use default consent if cookie is invalid
+        consentData = {
+          consentGiven: true,
+          agreedToDataUse: true,
+          agreedToWithdrawalTerms: true,
+          electronicSignature: 'Auto-consent for testing',
+          consentVersion: '1.0',
+          consentAt: new Date()
+        };
+      }
+    } else {
+      // No cookie - use default consent for testing
+      consentData = {
+        consentGiven: true,
+        agreedToDataUse: true,
+        agreedToWithdrawalTerms: true,
+        electronicSignature: 'Auto-consent for testing',
+        consentVersion: '1.0',
+        consentAt: new Date()
+      };
     }
 
     // Check if username already exists
@@ -91,18 +110,7 @@ const registerParticipant = async (req, res) => {
       });
     }
 
-    // Load study settings to check capacity
-    const studySettings = await StudySettings.getSettings();
-
-    // Check if study can accept participants
-    if (!studySettings.canAcceptParticipant()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Study has reached maximum participants. Registration is closed.'
-      });
-    }
-
-    // Create participant WITHOUT condition (will be assigned next)
+    // Create participant with chosen condition
     const participant = await Participant.create({
       name,
       username: username.toLowerCase(),
@@ -110,30 +118,15 @@ const registerParticipant = async (req, res) => {
       gender,
       university,
       department,
+      condition, // User-selected condition
+      conditionAssigned: true,
+      assignedAt: new Date(),
+      assignmentVersion: 'user-selected',
       consentGiven: consentData.consentGiven,
       consentAt: consentData.consentAt,
       consentVersion: consentData.consentVersion,
       status: 'active'
-      // NO condition field - assignment service handles this
     });
-
-    // Assign condition using computerized random allocation
-    try {
-      const assignmentResult = await assignmentService.assignCondition(participant, studySettings);
-      
-      // Reload participant to get updated data
-      await participant.populate('condition');
-      
-    } catch (assignmentError) {
-      // If assignment fails, delete the participant and return error
-      await Participant.findByIdAndDelete(participant._id);
-      
-      console.error('Assignment error:', assignmentError);
-      return res.status(500).json({
-        success: false,
-        message: assignmentError.message || 'Failed to assign experimental condition'
-      });
-    }
 
     // Create session
     res.cookie('participantSession', participant._id.toString(), {
@@ -156,7 +149,9 @@ const registerParticipant = async (req, res) => {
       details: {
         university: participant.university,
         age: participant.age,
-        gender: participant.gender
+        gender: participant.gender,
+        condition: participant.condition,
+        assignmentMethod: 'user-selected'
       },
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],

@@ -81,7 +81,14 @@ const registrationValidation = [
     .notEmpty()
     .withMessage('Department is required')
     .isLength({ min: 2, max: 100 })
-    .withMessage('Department must be 2-100 characters')
+    .withMessage('Department must be 2-100 characters'),
+  
+  body('condition')
+    .trim()
+    .notEmpty()
+    .withMessage('Participation preference is required')
+    .isIn(['anonymous', 'identifiable'])
+    .withMessage('Invalid participation preference')
 ];
 
 /**

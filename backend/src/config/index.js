@@ -21,7 +21,7 @@ const config = {
   
   // Rate Limiting
   rateLimitWindowMs: 15 * 60 * 1000, // 15 minutes
-  rateLimitMaxRequests: 100, // max requests per window
+  rateLimitMaxRequests: 1000, // max requests per window (increased for development)
   
   // Validation
   maxRequestBodySize: '10mb',

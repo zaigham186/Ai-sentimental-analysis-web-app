@@ -47,7 +47,11 @@ const registrationSchema = z.object({
   
   department: z.string()
     .min(2, 'Department must be at least 2 characters')
-    .max(100, 'Department must not exceed 100 characters')
+    .max(100, 'Department must not exceed 100 characters'),
+  
+  condition: z.enum(['anonymous', 'identifiable'], {
+    errorMap: () => ({ message: 'Please select your participation preference' })
+  })
 });
 
 type RegistrationFormData = z.infer<typeof registrationSchema>;
@@ -70,13 +74,14 @@ export default function RegisterPage() {
     setError(null);
 
     try {
-      const response = await api.participant.register({
+      await api.participant.register({
         name: data.name,
         username: data.username.toLowerCase(),
         age: data.age,
         gender: data.gender,
         university: data.university,
-        department: data.department
+        department: data.department,
+        condition: data.condition
       });
 
       // Registration successful - redirect to participant dashboard
@@ -210,6 +215,28 @@ export default function RegisterPage() {
                 <p className="text-xs text-gray-500 mt-1">
                   Your current field of study
                 </p>
+              </div>
+
+              {/* Participation Condition */}
+              <div>
+                <label htmlFor="condition" className="block text-sm font-medium text-gray-700 mb-2">
+                  Participation Preference <span className="text-red-500">*</span>
+                </label>
+                <Select
+                  id="condition"
+                  {...register('condition')}
+                  error={errors.condition?.message}
+                >
+                  <option value="">Select your preference</option>
+                  <option value="anonymous">Anonymous - Your responses will be completely anonymous</option>
+                  <option value="identifiable">Identifiable - Your responses will include your information</option>
+                </Select>
+                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-800">
+                    <strong>Anonymous:</strong> Your responses will be recorded without personal identification.<br/>
+                    <strong>Identifiable:</strong> Your responses will be linked to your profile information.
+                  </p>
+                </div>
               </div>
 
               {/* Privacy Notice */}

@@ -77,14 +77,9 @@ export default function ExperimentPage() {
   const handleSubmitResponse = async () => {
     if (submitting || submitAttempted.current) return;
 
-    // Validate response
+    // Validate response - ONLY check if not empty, allow any length
     if (!responseText.trim()) {
       setError('Please provide a response before continuing');
-      return;
-    }
-
-    if (responseText.trim().length < 10) {
-      setError('Please provide a more detailed response (at least 10 characters)');
       return;
     }
 
@@ -281,8 +276,7 @@ export default function ExperimentPage() {
                 Your Response
               </h3>
               <p className="text-gray-700">
-                Please provide your genuine reaction or opinion about this video. 
-                Write 2-4 sentences describing your thoughts.
+                Please provide your genuine reaction or opinion about this video.
               </p>
             </div>
 
@@ -303,7 +297,7 @@ export default function ExperimentPage() {
               />
               <div className="mt-2 flex justify-between items-center text-sm text-gray-600">
                 <span>
-                  {wordCount} {wordCount === 1 ? 'word' : 'words'} · Suggested: 2-4 sentences
+                  {wordCount} {wordCount === 1 ? 'word' : 'words'}
                 </span>
                 <span>{responseText.length} / 5000 characters</span>
               </div>
@@ -327,7 +321,7 @@ export default function ExperimentPage() {
 
               <Button
                 onClick={handleSubmitResponse}
-                disabled={submitting || !responseText.trim() || responseText.trim().length < 10}
+                disabled={submitting || !responseText.trim()}
                 size="lg"
               >
                 {submitting ? (

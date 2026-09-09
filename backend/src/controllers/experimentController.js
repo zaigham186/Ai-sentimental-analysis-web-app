@@ -251,10 +251,15 @@ const submitResponse = async (req, res) => {
 
     } else {
       // Create new response
+      const trimmedText = responseText.trim();
+      const wordCount = trimmedText.split(/\s+/).filter(w => w.length > 0).length;
+      
       videoResponse = await VideoResponse.create({
         participant: participant._id,
         video: currentVideo._id,
-        responseText: responseText.trim(),
+        responseText: trimmedText,
+        responseLength: trimmedText.length,  // ADDED - calculate length
+        responseWordCount: wordCount,         // ADDED - calculate word count
         responseTime: responseTime || null,
         submittedAt: new Date()
       });

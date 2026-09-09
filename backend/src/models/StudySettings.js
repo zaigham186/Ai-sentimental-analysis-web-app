@@ -22,21 +22,21 @@ const studySettingsSchema = new mongoose.Schema({
   targetParticipants: {
     type: Number,
     required: [true, 'Target participants is required'],
-    default: 60,
+    default: 90, // INCREASED TO 90
     min: [1, 'Target must be at least 1']
   },
   
   anonymousTarget: {
     type: Number,
     required: [true, 'Anonymous target is required'],
-    default: 30,
+    default: 45, // INCREASED TO 45
     min: [0, 'Anonymous target cannot be negative']
   },
   
   identifiableTarget: {
     type: Number,
     required: [true, 'Identifiable target is required'],
-    default: 30,
+    default: 45, // INCREASED TO 45
     min: [0, 'Identifiable target cannot be negative']
   },
   
@@ -326,9 +326,10 @@ studySettingsSchema.statics.getSettings = async function() {
   // Create default settings if none exist
   if (!settings) {
     settings = await this.create({
-      targetParticipants: 60,
-      anonymousTarget: 30,
-      identifiableTarget: 30
+      targetParticipants: 90, // INCREASED TO 90
+      anonymousTarget: 45, // INCREASED TO 45
+      identifiableTarget: 45, // INCREASED TO 45
+      acceptingParticipants: true // AUTO-ENABLE FOR TESTING
     });
   }
   

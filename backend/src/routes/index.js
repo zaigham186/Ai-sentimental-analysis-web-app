@@ -3,6 +3,7 @@ const healthRoutes = require('./health');
 const participantRoutes = require('./participants');
 const conditionRoutes = require('./condition');
 const experimentRoutes = require('./experiment');
+const adminRoutes = require('./admin');
 
 const router = express.Router();
 
@@ -15,9 +16,9 @@ router.use('/health', healthRoutes);
 router.use('/participants', participantRoutes);
 router.use('/condition', conditionRoutes);
 router.use('/experiment', experimentRoutes);
+router.use('/admin', adminRoutes);
 
 // Future routes will be added here:
 // router.use('/questionnaires', questionnaireRoutes);
-// router.use('/admin', adminRoutes);
 
 module.exports = router;
