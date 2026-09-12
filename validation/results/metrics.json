@@ -1,0 +1,250 @@
+{
+  "validation_status": "Benchmark Validated",
+  "is_validated": true,
+  "is_synthetic_benchmark": true,
+  "sample_count": 15,
+  "timestamp": "2026-09-11T06:55:23.991139+00:00",
+  "dimensions": {
+    "sentiment": {
+      "accuracy": 0.8,
+      "macro_precision": 0.6222,
+      "macro_recall": 0.7,
+      "macro_f1": 0.648,
+      "weighted_f1": 0.7781,
+      "cohen_kappa": 0.6218,
+      "per_class": {
+        "positive": {
+          "precision": 0.6,
+          "recall": 1.0,
+          "f1": 0.75,
+          "support": 3
+        },
+        "neutral": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 1
+        },
+        "negative": {
+          "precision": 0.8889,
+          "recall": 0.8,
+          "f1": 0.8421,
+          "support": 10
+        },
+        "mixed": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1
+        }
+      },
+      "confusion_matrix": {
+        "labels": [
+          "positive",
+          "neutral",
+          "negative",
+          "mixed"
+        ],
+        "matrix": [
+          [
+            3,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0,
+            0
+          ],
+          [
+            2,
+            0,
+            8,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            0
+          ]
+        ]
+      },
+      "support": {
+        "total": 15
+      }
+    },
+    "toxicity": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "macro_precision": 1.0,
+      "macro_recall": 1.0,
+      "macro_f1": 1.0,
+      "weighted_f1": 1.0,
+      "cohen_kappa": 1.0,
+      "confusion_matrix": {
+        "labels": [
+          "Negative/Absent (0)",
+          "Positive/Present (1)"
+        ],
+        "matrix": [
+          [
+            8,
+            0
+          ],
+          [
+            0,
+            7
+          ]
+        ],
+        "true_negative": 8,
+        "false_positive": 0,
+        "false_negative": 0,
+        "true_positive": 7
+      },
+      "support": {
+        "total": 15,
+        "positive_cases": 7,
+        "negative_cases": 8
+      }
+    },
+    "aggression": {
+      "accuracy": 0.8,
+      "macro_precision": 0.6444,
+      "macro_recall": 0.625,
+      "macro_f1": 0.6076,
+      "weighted_f1": 0.7343,
+      "cohen_kappa": 0.6786,
+      "per_class": {
+        "none": {
+          "precision": 0.7778,
+          "recall": 1.0,
+          "f1": 0.875,
+          "support": 7
+        },
+        "mild": {
+          "precision": 1.0,
+          "recall": 0.5,
+          "f1": 0.6667,
+          "support": 2
+        },
+        "moderate": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 2
+        },
+        "severe": {
+          "precision": 0.8,
+          "recall": 1.0,
+          "f1": 0.8889,
+          "support": 4
+        }
+      },
+      "confusion_matrix": {
+        "labels": [
+          "none",
+          "mild",
+          "moderate",
+          "severe"
+        ],
+        "matrix": [
+          [
+            7,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            1,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            4
+          ]
+        ]
+      },
+      "support": {
+        "total": 15
+      }
+    },
+    "cyberbullying": {
+      "accuracy": 0.9333,
+      "precision": 0.8,
+      "recall": 1.0,
+      "f1": 0.8889,
+      "macro_precision": 0.9,
+      "macro_recall": 0.9545,
+      "macro_f1": 0.9206,
+      "weighted_f1": 0.9354,
+      "cohen_kappa": 0.8421,
+      "confusion_matrix": {
+        "labels": [
+          "Negative/Absent (0)",
+          "Positive/Present (1)"
+        ],
+        "matrix": [
+          [
+            10,
+            1
+          ],
+          [
+            0,
+            4
+          ]
+        ],
+        "true_negative": 10,
+        "false_positive": 1,
+        "false_negative": 0,
+        "true_positive": 4
+      },
+      "support": {
+        "total": 15,
+        "positive_cases": 4,
+        "negative_cases": 11
+      }
+    }
+  },
+  "inter_rater_reliability": {
+    "secondary_coder_available": true,
+    "sample_count": 15,
+    "cohen_kappa": {
+      "sentiment": 0.8684,
+      "cyberbullying": 1.0,
+      "toxicity": 1.0,
+      "aggression": 1.0
+    }
+  },
+  "multilingual_breakdown": {
+    "english": {
+      "samples": 12,
+      "cyberbullying_accuracy": 0.9167,
+      "sentiment_accuracy": 0.8333
+    },
+    "roman_urdu": {
+      "samples": 2,
+      "cyberbullying_accuracy": 1.0,
+      "sentiment_accuracy": 0.5
+    },
+    "urdu": {
+      "samples": 1,
+      "cyberbullying_accuracy": 1.0,
+      "sentiment_accuracy": 1.0
+    }
+  }
+}

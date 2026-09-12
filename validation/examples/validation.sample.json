@@ -1,0 +1,400 @@
+{
+  "$schema": "../dataset.schema.json",
+  "version": "1.0.0",
+  "description": "Synthetic Research Benchmark Dataset for Evaluation Pipeline Verification (M.Phil Cyberbullying Study)",
+  "created_at": "2026-09-11T00:00:00Z",
+  "coders": ["coder_primary", "coder_secondary"],
+  "is_synthetic_benchmark": true,
+  "items": [
+    {
+      "id": "val-001",
+      "text": "I strongly disagree with your argument. The logic presented in this video is flawed.",
+      "language": "english",
+      "context": { "videoTopic": "Social Media Regulation", "condition": "identifiable" },
+      "human": {
+        "sentiment": "negative",
+        "toxicity": false,
+        "aggression": "none",
+        "aggression_score": 0.0,
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "cyberbullying_severity": 0.0,
+        "is_personally_targeted": false,
+        "coder_id": "coder_primary"
+      },
+      "secondary_human": {
+        "sentiment": "negative",
+        "toxicity": false,
+        "aggression": "none",
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "coder_id": "coder_secondary"
+      },
+      "notes": "Critique of ideas/content without personal hostility; classic non-bullying negative discourse"
+    },
+    {
+      "id": "val-002",
+      "text": "You are a complete idiot. Only a moron would say something this stupid.",
+      "language": "english",
+      "context": { "videoTopic": "Campus Politics", "condition": "anonymous" },
+      "human": {
+        "sentiment": "negative",
+        "toxicity": true,
+        "aggression": "moderate",
+        "aggression_score": 5.5,
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "cyberbullying_severity": 2.0,
+        "is_personally_targeted": true,
+        "coder_id": "coder_primary"
+      },
+      "secondary_human": {
+        "sentiment": "negative",
+        "toxicity": true,
+        "aggression": "moderate",
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "coder_id": "coder_secondary"
+      },
+      "notes": "Direct insult targeting individual; toxic and aggressive, but single isolated insult lacking sustained harassment"
+    },
+    {
+      "id": "val-003",
+      "text": "I will find out where you live and hurt you. You will regret ever speaking.",
+      "language": "english",
+      "context": { "videoTopic": "Online Harassment", "condition": "anonymous" },
+      "human": {
+        "sentiment": "negative",
+        "toxicity": true,
+        "aggression": "severe",
+        "aggression_score": 9.2,
+        "cyberbullying": true,
+        "cyberbullying_type": "threat",
+        "cyberbullying_severity": 9.0,
+        "is_personally_targeted": true,
+        "coder_id": "coder_primary"
+      },
+      "secondary_human": {
+        "sentiment": "negative",
+        "toxicity": true,
+        "aggression": "severe",
+        "cyberbullying": true,
+        "cyberbullying_type": "threat",
+        "coder_id": "coder_secondary"
+      },
+      "notes": "Unambiguous cyberbullying meeting threat and personal targeting criteria"
+    },
+    {
+      "id": "val-004",
+      "text": "You are a worthless loser. Everyone on campus needs to see how pathetic and disgusting you are.",
+      "language": "english",
+      "context": { "videoTopic": "Social Media Stigma", "condition": "anonymous" },
+      "human": {
+        "sentiment": "negative",
+        "toxicity": true,
+        "aggression": "severe",
+        "aggression_score": 8.0,
+        "cyberbullying": true,
+        "cyberbullying_type": "denigration",
+        "cyberbullying_severity": 8.0,
+        "is_personally_targeted": true,
+        "coder_id": "coder_primary"
+      },
+      "secondary_human": {
+        "sentiment": "negative",
+        "toxicity": true,
+        "aggression": "severe",
+        "cyberbullying": true,
+        "cyberbullying_type": "denigration",
+        "coder_id": "coder_secondary"
+      },
+      "notes": "Targeted denigration and humiliation meeting cyberbullying operational criteria"
+    },
+    {
+      "id": "val-005",
+      "text": "Wow, you are really a total genius, aren't you? What brilliant insight.",
+      "language": "english",
+      "context": { "videoTopic": "Academic Presentation", "condition": "identifiable" },
+      "human": {
+        "sentiment": "negative",
+        "toxicity": false,
+        "aggression": "mild",
+        "aggression_score": 2.5,
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "cyberbullying_severity": 1.0,
+        "is_personally_targeted": true,
+        "coder_id": "coder_primary"
+      },
+      "secondary_human": {
+        "sentiment": "negative",
+        "toxicity": false,
+        "aggression": "mild",
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "coder_id": "coder_secondary"
+      },
+      "notes": "Sarcastic response with surface positive words but negative pragmatic intent; non-bullying"
+    },
+    {
+      "id": "val-006",
+      "text": "I really enjoyed this presentation! The speaker explained everything clearly and respectfully.",
+      "language": "english",
+      "context": { "videoTopic": "Educational Content", "condition": "identifiable" },
+      "human": {
+        "sentiment": "positive",
+        "toxicity": false,
+        "aggression": "none",
+        "aggression_score": 0.0,
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "cyberbullying_severity": 0.0,
+        "is_personally_targeted": false,
+        "coder_id": "coder_primary"
+      },
+      "secondary_human": {
+        "sentiment": "positive",
+        "toxicity": false,
+        "aggression": "none",
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "coder_id": "coder_secondary"
+      },
+      "notes": "Clear positive sentiment; clean non-abusive communication"
+    },
+    {
+      "id": "val-007",
+      "text": "The video discussed various online interaction behaviors and presented three separate cases.",
+      "language": "english",
+      "context": { "videoTopic": "Case Studies", "condition": "identifiable" },
+      "human": {
+        "sentiment": "neutral",
+        "toxicity": false,
+        "aggression": "none",
+        "aggression_score": 0.0,
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "cyberbullying_severity": 0.0,
+        "is_personally_targeted": false,
+        "coder_id": "coder_primary"
+      },
+      "secondary_human": {
+        "sentiment": "neutral",
+        "toxicity": false,
+        "aggression": "none",
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "coder_id": "coder_secondary"
+      },
+      "notes": "Pure factual description with neutral valence"
+    },
+    {
+      "id": "val-008",
+      "text": "This whole video is utter garbage and a waste of time.",
+      "language": "english",
+      "context": { "videoTopic": "Student Feedback", "condition": "anonymous" },
+      "human": {
+        "sentiment": "negative",
+        "toxicity": true,
+        "aggression": "mild",
+        "aggression_score": 3.0,
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "cyberbullying_severity": 0.0,
+        "is_personally_targeted": false,
+        "coder_id": "coder_primary"
+      },
+      "secondary_human": {
+        "sentiment": "negative",
+        "toxicity": true,
+        "aggression": "mild",
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "coder_id": "coder_secondary"
+      },
+      "notes": "Vulgar/toxic language directed at content, NOT targeted at a person; negative != cyberbullying"
+    },
+    {
+      "id": "val-009",
+      "text": "Stop talking, you disgusting freak. Nobody wants to hear from someone like you.",
+      "language": "english",
+      "context": { "videoTopic": "Gender & Society", "condition": "anonymous" },
+      "human": {
+        "sentiment": "negative",
+        "toxicity": true,
+        "aggression": "severe",
+        "aggression_score": 8.5,
+        "cyberbullying": true,
+        "cyberbullying_type": "harassment",
+        "cyberbullying_severity": 8.0,
+        "is_personally_targeted": true,
+        "coder_id": "coder_primary"
+      },
+      "secondary_human": {
+        "sentiment": "negative",
+        "toxicity": true,
+        "aggression": "severe",
+        "cyberbullying": true,
+        "cyberbullying_type": "harassment",
+        "coder_id": "coder_secondary"
+      },
+      "notes": "Targeted exclusion, insult, and personal harassment meeting cyberbullying definition"
+    },
+    {
+      "id": "val-010",
+      "text": "Mujhe ye video bilkul achi nahi lagi, content bohot boring tha.",
+      "language": "roman_urdu",
+      "context": { "videoTopic": "Student Reactions", "condition": "identifiable" },
+      "human": {
+        "sentiment": "negative",
+        "toxicity": false,
+        "aggression": "none",
+        "aggression_score": 0.0,
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "cyberbullying_severity": 0.0,
+        "is_personally_targeted": false,
+        "coder_id": "coder_primary"
+      },
+      "secondary_human": {
+        "sentiment": "negative",
+        "toxicity": false,
+        "aggression": "none",
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "coder_id": "coder_secondary"
+      },
+      "notes": "Roman Urdu negative evaluation of video stimulus; non-toxic, non-bullying"
+    },
+    {
+      "id": "val-011",
+      "text": "Tum bilkul jahil aur bewaqoof insan ho, sharam karo.",
+      "language": "roman_urdu",
+      "context": { "videoTopic": "Campus Debate", "condition": "anonymous" },
+      "human": {
+        "sentiment": "negative",
+        "toxicity": true,
+        "aggression": "moderate",
+        "aggression_score": 6.0,
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "cyberbullying_severity": 3.0,
+        "is_personally_targeted": true,
+        "coder_id": "coder_primary"
+      },
+      "secondary_human": {
+        "sentiment": "negative",
+        "toxicity": true,
+        "aggression": "moderate",
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "coder_id": "coder_secondary"
+      },
+      "notes": "Roman Urdu personal insult; toxic and aggressive, but borderline isolated abuse"
+    },
+    {
+      "id": "val-012",
+      "text": "یہ ویڈیو بہت معلوماتی اور دلچسپ تھی۔",
+      "language": "urdu",
+      "context": { "videoTopic": "Educational Stimulus", "condition": "identifiable" },
+      "human": {
+        "sentiment": "positive",
+        "toxicity": false,
+        "aggression": "none",
+        "aggression_score": 0.0,
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "cyberbullying_severity": 0.0,
+        "is_personally_targeted": false,
+        "coder_id": "coder_primary"
+      },
+      "secondary_human": {
+        "sentiment": "positive",
+        "toxicity": false,
+        "aggression": "none",
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "coder_id": "coder_secondary"
+      },
+      "notes": "Native Urdu positive response; tests XLM-RoBERTa multilingual sentiment capability"
+    },
+    {
+      "id": "val-013",
+      "text": "I see both sides of this argument. While some points are valid, other claims lack factual evidence.",
+      "language": "english",
+      "context": { "videoTopic": "Balanced Discussion", "condition": "identifiable" },
+      "human": {
+        "sentiment": "mixed",
+        "toxicity": false,
+        "aggression": "none",
+        "aggression_score": 0.0,
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "cyberbullying_severity": 0.0,
+        "is_personally_targeted": false,
+        "coder_id": "coder_primary"
+      },
+      "secondary_human": {
+        "sentiment": "neutral",
+        "toxicity": false,
+        "aggression": "none",
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "coder_id": "coder_secondary"
+      },
+      "notes": "Mixed/balanced evaluation; intentional minor human discrepancy for kappa evaluation"
+    },
+    {
+      "id": "val-014",
+      "text": "Shut up idiot. I will destroy your life.",
+      "language": "english",
+      "context": { "videoTopic": "Online Arguments", "condition": "anonymous" },
+      "human": {
+        "sentiment": "negative",
+        "toxicity": true,
+        "aggression": "severe",
+        "aggression_score": 9.5,
+        "cyberbullying": true,
+        "cyberbullying_type": "threat",
+        "cyberbullying_severity": 9.0,
+        "is_personally_targeted": true,
+        "coder_id": "coder_primary"
+      },
+      "secondary_human": {
+        "sentiment": "negative",
+        "toxicity": true,
+        "aggression": "severe",
+        "cyberbullying": true,
+        "cyberbullying_type": "threat",
+        "coder_id": "coder_secondary"
+      },
+      "notes": "Direct threat of life destruction, highly toxic, severe cyberbullying"
+    },
+    {
+      "id": "val-015",
+      "text": "Very great explanation! Thank you for clarifying these concepts so well.",
+      "language": "english",
+      "context": { "videoTopic": "Research Methods", "condition": "identifiable" },
+      "human": {
+        "sentiment": "positive",
+        "toxicity": false,
+        "aggression": "none",
+        "aggression_score": 0.0,
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "cyberbullying_severity": 0.0,
+        "is_personally_targeted": false,
+        "coder_id": "coder_primary"
+      },
+      "secondary_human": {
+        "sentiment": "positive",
+        "toxicity": false,
+        "aggression": "none",
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "coder_id": "coder_secondary"
+      },
+      "notes": "Unambiguous positive feedback"
+    }
+  ]
+}

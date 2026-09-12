@@ -124,8 +124,8 @@ async function testBalancedAllocation() {
 
   const settings = await StudySettings.getSettings();
 
-  // Create and assign 60 participants
-  for (let i = 2; i <= 61; i++) {
+  // Create and assign 59 participants (test_user_2 through test_user_60) to reach target of 60
+  for (let i = 2; i <= 60; i++) {
     const participant = await Participant.create({
       name: `Test User ${i}`,
       username: `test_user_${i}`,

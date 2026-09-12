@@ -85,7 +85,7 @@ const codingSchema = new mongoose.Schema({
       },
       type: {
         type: String,
-        enum: ['none', 'harassment', 'denigration', 'flaming', 'impersonation', 'outing', 'exclusion', 'cyberstalking', 'other', null],
+        enum: ['none', 'harassment', 'denigration', 'flaming', 'impersonation', 'outing', 'exclusion', 'cyberstalking', 'threat', 'other', null],
         default: null
       },
       severity: {
@@ -115,6 +115,10 @@ const codingSchema = new mongoose.Schema({
     },
 
     // AI Metadata
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {}
+    },
     modelName: {
       type: String,
       maxlength: 100
@@ -193,7 +197,7 @@ const codingSchema = new mongoose.Schema({
     type: {
       type: String,
       enum: {
-        values: ['none', 'harassment', 'denigration', 'flaming', 'impersonation', 'outing', 'exclusion', 'cyberstalking', 'other', null],
+        values: ['none', 'harassment', 'denigration', 'flaming', 'impersonation', 'outing', 'exclusion', 'cyberstalking', 'threat', 'other', null],
         message: '{VALUE} is not a valid cyberbullying type'
       },
       default: null
@@ -226,11 +230,10 @@ const codingSchema = new mongoose.Schema({
   reviewStatus: {
     type: String,
     enum: {
-      values: ['pending_review', 'ai_generated', 'reviewed', 'needs_revision', 'approved', 'uncertain'],
+      values: ['pending', 'pending_review', 'ai_generated', 'reviewed', 'needs_revision', 'approved', 'uncertain'],
       message: '{VALUE} is not a valid review status'
     },
-    default: 'pending_review',
-    index: true
+    default: 'pending'
   },
 
   reviewAction: {
@@ -245,8 +248,7 @@ const codingSchema = new mongoose.Schema({
   codedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Admin',
-    required: [true, 'Coder reference is required'],
-    index: true
+    required: false
   },
   
   coderRole: {
@@ -267,8 +269,7 @@ const codingSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Coding framework version is required'],
     default: '1.0',
-    maxlength: [20, 'Coding framework version cannot exceed 20 characters'],
-    index: true
+    maxlength: [20, 'Coding framework version cannot exceed 20 characters']
   },
 
   codingVersion: {
@@ -339,7 +340,35 @@ const codingSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Admin',
     default: null
-  }
+  },
+
+  // ============================================
+  // AUDIT TRAIL (Human-in-the-Loop Actions)
+  // ============================================
+  auditTrail: [{
+    action: {
+      type: String,
+      enum: ['accept', 'modify', 'reject', 'marked_uncertain', 'accepted_ai', null]
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Admin'
+    },
+    reviewedAt: {
+      type: Date,
+      default: Date.now
+    },
+    aiSuggestion: {
+      type: mongoose.Schema.Types.Mixed
+    },
+    finalDecision: {
+      type: mongoose.Schema.Types.Mixed
+    },
+    notes: {
+      type: String,
+      maxlength: 2000
+    }
+  }]
 }, {
   timestamps: true
 });

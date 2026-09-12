@@ -4,6 +4,7 @@ const videoRoutes = require('./videos');
 const codingRoutes = require('./coding');
 const analyticsRoutes = require('./analytics');
 const exportRoutes = require('./export');
+const researchAnalyticsRoutes = require('./researchAnalyticsRoutes');
 const participantManagementRoutes = require('./participants.management');
 const responseManagementRoutes = require('./responses.management');
 const { 
@@ -11,6 +12,7 @@ const {
   requireResearcher,
   checkExistingAdminSession 
 } = require('../middleware/adminAuth');
+const { authLimiter } = require('../middleware/security');
 
 const router = express.Router();
 
@@ -28,8 +30,9 @@ const router = express.Router();
  * POST /api/admin/login
  * Admin login
  * Public route (no authentication required)
+ * Hardened with authLimiter for brute-force protection
  */
-router.post('/login', checkExistingAdminSession, adminController.login);
+router.post('/login', authLimiter, checkExistingAdminSession, adminController.login);
 
 /**
  * POST /api/admin/logout
@@ -69,6 +72,12 @@ router.use('/coding', codingRoutes);
  * /api/admin/analytics/*
  */
 router.use('/analytics', analyticsRoutes);
+
+/**
+ * Research Analytics & Reporting Routes (Phase 7)
+ * /api/admin/research-analytics/*
+ */
+router.use('/research-analytics', researchAnalyticsRoutes);
 
 /**
  * Export Routes (Phase 11)

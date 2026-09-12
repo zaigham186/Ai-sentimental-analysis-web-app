@@ -1,0 +1,44 @@
+{
+  "framework": "Aggression Lexicon Model (Xu et al., 2020) - Research Operational Definition",
+  "version": "1.0.0",
+  "description": "Baseline operational aggression and hostile language indicators derived from research coding methodology. The complete empirical research dataset lexicon can be augmented here.",
+  "categories": {
+    "hostile": {
+      "description": "General hostile or demeaning words",
+      "terms": [
+        "stupid", "idiot", "fool", "moron", "dumb", "jerk", "asshole",
+        "bastard", "bitch", "loser", "pathetic", "clown", "garbage", "trash"
+      ]
+    },
+    "insult": {
+      "description": "Derogatory personal insults and slurs",
+      "terms": [
+        "ugly", "disgusting", "worthless", "useless", "retard", "scum",
+        "pig", "freak", "nasty", "creep"
+      ]
+    },
+    "threat": {
+      "description": "Threatening, violent, or intimidating language",
+      "terms": [
+        "kill", "destroy", "hurt", "attack", "die", "murder", "beat",
+        "punch", "shoot", "choke", "strangle", "slit", "burn", "torture"
+      ]
+    },
+    "demeaning": {
+      "description": "Demeaning or humiliating expressions",
+      "terms": [
+        "shame", "embarrass", "humiliate", "laughable", "disgrace",
+        "unwanted", "nobody likes you", "disappear"
+      ]
+    }
+  },
+  "targeting_pronouns": [
+    "you", "your", "you're", "youre", "yourself", "u", "ur", "he", "she", "they"
+  ],
+  "critique_markers": [
+    "i think", "i believe", "in my opinion", "i disagree", "the idea",
+    "the video", "the content", "the presentation", "the argument",
+    "the topic", "the speaker", "this video", "this clip", "this argument"
+  ],
+  "notes": "Scores and indicators produced from this baseline lexicon reflect the operational coding framework. Empirical weights from human-coded datasets should be supplied for formal validation."
+}

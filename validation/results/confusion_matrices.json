@@ -1,0 +1,111 @@
+{
+  "timestamp": "2026-09-11T06:55:23.991139+00:00",
+  "sentiment": {
+    "labels": [
+      "positive",
+      "neutral",
+      "negative",
+      "mixed"
+    ],
+    "matrix": [
+      [
+        3,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        0,
+        0
+      ],
+      [
+        2,
+        0,
+        8,
+        0
+      ],
+      [
+        0,
+        0,
+        1,
+        0
+      ]
+    ]
+  },
+  "toxicity": {
+    "labels": [
+      "Negative/Absent (0)",
+      "Positive/Present (1)"
+    ],
+    "matrix": [
+      [
+        8,
+        0
+      ],
+      [
+        0,
+        7
+      ]
+    ],
+    "true_negative": 8,
+    "false_positive": 0,
+    "false_negative": 0,
+    "true_positive": 7
+  },
+  "aggression": {
+    "labels": [
+      "none",
+      "mild",
+      "moderate",
+      "severe"
+    ],
+    "matrix": [
+      [
+        7,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        1,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        4
+      ]
+    ]
+  },
+  "cyberbullying": {
+    "labels": [
+      "Negative/Absent (0)",
+      "Positive/Present (1)"
+    ],
+    "matrix": [
+      [
+        10,
+        1
+      ],
+      [
+        0,
+        4
+      ]
+    ],
+    "true_negative": 10,
+    "false_positive": 1,
+    "false_negative": 0,
+    "true_positive": 4
+  }
+}

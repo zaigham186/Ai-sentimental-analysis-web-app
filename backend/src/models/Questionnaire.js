@@ -187,8 +187,7 @@ const questionnaireSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes
-questionnaireSchema.index({ questionnaireId: 1 }, { unique: true });
+// Indexes (questionnaireId is indexed uniquely in field definition)
 questionnaireSchema.index({ active: 1, displayOrder: 1 });
 
 // Statics

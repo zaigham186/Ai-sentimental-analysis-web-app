@@ -1,4 +1,4 @@
-const { Participant, AuditLog, StudySettings } = require('../models');
+const { Participant, AuditLog } = require('../models');
 const config = require('../config');
 
 /**
@@ -14,7 +14,7 @@ const config = require('../config');
  */
 const submitConsent = async (req, res) => {
   try {
-    const { consentGiven, agreedToDataUse, agreedToWithdrawalTerms, electronicSignature } = req.body;
+    const { electronicSignature } = req.body;
 
     // Consent version (should come from StudySettings in future)
     const consentVersion = '1.0';

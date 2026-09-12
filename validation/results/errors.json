@@ -1,0 +1,96 @@
+{
+  "timestamp": "2026-09-11T06:55:23.991139+00:00",
+  "total_errors": 4,
+  "error_category_counts": {
+    "INSULT_WITHOUT_CYBERBULLYING": 1,
+    "SARCASM_AMBIGUITY": 1,
+    "SENTIMENT_POLARITY_MISMATCH": 1,
+    "MIXED_VALENCE_DISCREPANCY": 1
+  },
+  "errors": [
+    {
+      "id": "val-002",
+      "text": "You are a complete idiot. Only a moron would say something this stupid.",
+      "language": "english",
+      "category": "INSULT_WITHOUT_CYBERBULLYING",
+      "explanation": "Text contains abusive language but lacks sustained harassment or personal threat required for cyberbullying definition.",
+      "discrepancies": {
+        "cyberbullying": {
+          "human": false,
+          "predicted": true
+        },
+        "sentiment": {
+          "human": "negative",
+          "predicted": "negative"
+        },
+        "toxicity": {
+          "human": true,
+          "predicted": true
+        }
+      }
+    },
+    {
+      "id": "val-005",
+      "text": "Wow, you are really a total genius, aren't you? What brilliant insight.",
+      "language": "english",
+      "category": "SARCASM_AMBIGUITY",
+      "explanation": "Sarcastic surface positive wording disguised true negative evaluation.",
+      "discrepancies": {
+        "cyberbullying": {
+          "human": false,
+          "predicted": false
+        },
+        "sentiment": {
+          "human": "negative",
+          "predicted": "positive"
+        },
+        "toxicity": {
+          "human": false,
+          "predicted": false
+        }
+      }
+    },
+    {
+      "id": "val-011",
+      "text": "Tum bilkul jahil aur bewaqoof insan ho, sharam karo.",
+      "language": "roman_urdu",
+      "category": "SENTIMENT_POLARITY_MISMATCH",
+      "explanation": "Human coded negative but model predicted positive.",
+      "discrepancies": {
+        "cyberbullying": {
+          "human": false,
+          "predicted": false
+        },
+        "sentiment": {
+          "human": "negative",
+          "predicted": "positive"
+        },
+        "toxicity": {
+          "human": true,
+          "predicted": true
+        }
+      }
+    },
+    {
+      "id": "val-013",
+      "text": "I see both sides of this argument. While some points are valid, other claims lack factual evidence.",
+      "language": "english",
+      "category": "MIXED_VALENCE_DISCREPANCY",
+      "explanation": "Response contained both positive and negative elements; model selected single primary pole.",
+      "discrepancies": {
+        "cyberbullying": {
+          "human": false,
+          "predicted": false
+        },
+        "sentiment": {
+          "human": "mixed",
+          "predicted": "negative"
+        },
+        "toxicity": {
+          "human": false,
+          "predicted": false
+        }
+      }
+    }
+  ]
+}

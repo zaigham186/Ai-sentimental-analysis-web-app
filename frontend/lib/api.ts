@@ -272,6 +272,9 @@ export const api = {
       // Get configuration
       config: () => fetchAPI('/api/admin/coding/config'),
 
+      // Phase 6: Research Validation & Calibration Status
+      validationStatus: () => fetchAPI('/api/admin/coding/validation-status'),
+
       // Phase 10 Enhancement: AI-Assisted Coding
       
       // Trigger AI analysis for a response
@@ -332,6 +335,63 @@ export const api = {
 
       // Get aggression analytics
       aggression: () => fetchAPI('/api/admin/analytics/aggression')
+    },
+
+    // Phase 7: Complete Research Analytics & Reporting
+    researchAnalytics: {
+      overview: (params?: Record<string, any>) => {
+        const query = params ? new URLSearchParams(params as any).toString() : '';
+        return fetchAPI(`/api/admin/research-analytics/overview${query ? `?${query}` : ''}`);
+      },
+      sentiment: (params?: Record<string, any>) => {
+        const query = params ? new URLSearchParams(params as any).toString() : '';
+        return fetchAPI(`/api/admin/research-analytics/sentiment${query ? `?${query}` : ''}`);
+      },
+      toxicity: (params?: Record<string, any>) => {
+        const query = params ? new URLSearchParams(params as any).toString() : '';
+        return fetchAPI(`/api/admin/research-analytics/toxicity${query ? `?${query}` : ''}`);
+      },
+      aggression: (params?: Record<string, any>) => {
+        const query = params ? new URLSearchParams(params as any).toString() : '';
+        return fetchAPI(`/api/admin/research-analytics/aggression${query ? `?${query}` : ''}`);
+      },
+      cyberbullying: (params?: Record<string, any>) => {
+        const query = params ? new URLSearchParams(params as any).toString() : '';
+        return fetchAPI(`/api/admin/research-analytics/cyberbullying${query ? `?${query}` : ''}`);
+      },
+      conditionComparison: (params?: Record<string, any>) => {
+        const query = params ? new URLSearchParams(params as any).toString() : '';
+        return fetchAPI(`/api/admin/research-analytics/condition-comparison${query ? `?${query}` : ''}`);
+      },
+      videoComparison: (params?: Record<string, any>) => {
+        const query = params ? new URLSearchParams(params as any).toString() : '';
+        return fetchAPI(`/api/admin/research-analytics/video-comparison${query ? `?${query}` : ''}`);
+      },
+      aiHumanAgreement: (params?: Record<string, any>) => {
+        const query = params ? new URLSearchParams(params as any).toString() : '';
+        return fetchAPI(`/api/admin/research-analytics/ai-human${query ? `?${query}` : ''}`);
+      },
+      responses: (params?: Record<string, any>) => {
+        const query = params ? new URLSearchParams(params as any).toString() : '';
+        return fetchAPI(`/api/admin/research-analytics/responses${query ? `?${query}` : ''}`);
+      },
+      validation: () => fetchAPI('/api/admin/research-analytics/validation'),
+      supervisorReport: (params?: Record<string, any>) => {
+        const query = params ? new URLSearchParams(params as any).toString() : '';
+        return fetchAPI(`/api/admin/research-analytics/report/summary${query ? `?${query}` : ''}`);
+      },
+      exportCSVUrl: (params?: Record<string, any>) => {
+        const query = params ? new URLSearchParams(params as any).toString() : '';
+        return `${API_URL}/api/admin/research-analytics/export/csv${query ? `?${query}` : ''}`;
+      },
+      exportJSONUrl: (params?: Record<string, any>) => {
+        const query = params ? new URLSearchParams(params as any).toString() : '';
+        return `${API_URL}/api/admin/research-analytics/export/json${query ? `?${query}` : ''}`;
+      },
+      exportXLSXUrl: (params?: Record<string, any>) => {
+        const query = params ? new URLSearchParams(params as any).toString() : '';
+        return `${API_URL}/api/admin/research-analytics/export/xlsx${query ? `?${query}` : ''}`;
+      }
     },
 
     // Export (Phase 11)

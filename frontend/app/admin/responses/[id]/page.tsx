@@ -8,7 +8,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { api } from '@/lib/api';
-import type { Admin, ResponseDetail } from '@/types';
+import type { Admin, ResponseManagementDetail } from '@/types';
 
 /**
  * Response Detail Page
@@ -21,7 +21,7 @@ export default function ResponseDetailPage() {
   const responseId = params.id as string;
 
   const [admin, setAdmin] = useState<Admin | null>(null);
-  const [detail, setDetail] = useState<ResponseDetail | null>(null);
+  const [detail, setDetail] = useState<ResponseManagementDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -294,7 +294,7 @@ export default function ResponseDetailPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                     <div>
                       <span className="font-medium">Coded by:</span>{' '}
-                      {coding.codedBy.name} (@{coding.codedBy.username})
+                      {coding.codedBy ? `${coding.codedBy.name} (@${coding.codedBy.username})` : 'System / Unassigned'}
                     </div>
                     <div>
                       <span className="font-medium">Role:</span>{' '}
@@ -306,7 +306,7 @@ export default function ResponseDetailPage() {
                     </div>
                     <div>
                       <span className="font-medium">Coded at:</span>{' '}
-                      {new Date(coding.codedAt).toLocaleString()}
+                      {coding.codedAt ? new Date(coding.codedAt).toLocaleString() : 'N/A'}
                     </div>
                   </div>
                 </div>

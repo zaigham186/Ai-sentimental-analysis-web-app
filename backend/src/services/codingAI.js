@@ -366,7 +366,7 @@ class RuleBasedProvider extends CodingProvider {
  */
 class CodingAIService {
   constructor(provider = null) {
-    this.provider = provider || new RuleBasedProvider();
+    this.provider = provider || createCodingProvider();
   }
 
   async analyzeResponse(responseText, context = {}) {
@@ -398,9 +398,9 @@ class CodingAIService {
 
       // Determine overall review need
       analysis.needsHumanReview = 
-        analysis.sentiment.needsReview ||
-        analysis.aggression.needsReview ||
-        analysis.cyberbullying.needsReview;
+        Boolean(analysis.sentiment?.needsReview) ||
+        Boolean(analysis.aggression?.needsReview) ||
+        Boolean(analysis.cyberbullying?.needsReview);
 
       return {
         success: true,
@@ -430,9 +430,46 @@ class CodingAIService {
   }
 }
 
-// Export service and providers
+/**
+ * Provider Factory (Phase 4)
+ * Creates the appropriate CodingProvider based on configuration or options
+ * @param {object} options
+ * @returns {CodingProvider}
+ */
+function createCodingProvider(options = {}) {
+  let config = {};
+  try {
+    config = require('../config');
+  } catch (err) {
+    // If config module fails to load (e.g., in isolated unit tests)
+    config = {};
+  }
+
+  const NLPProvider = require('./nlpProvider');
+
+  const nlpEnabled = options.nlpEnabled !== undefined
+    ? options.nlpEnabled
+    : (config.nlp?.enabled ?? (process.env.NLP_PROVIDER_ENABLED === 'true'));
+
+  if (nlpEnabled) {
+    return new NLPProvider({
+      url: options.url || config.nlp?.serviceUrl || process.env.NLP_SERVICE_URL || 'http://127.0.0.1:8001',
+      timeout: options.timeout || config.nlp?.timeoutMs || parseInt(process.env.NLP_SERVICE_TIMEOUT_MS, 10) || 30000,
+      fallbackEnabled: options.fallbackEnabled !== undefined 
+        ? options.fallbackEnabled 
+        : (config.nlp?.fallbackEnabled ?? (process.env.NLP_FALLBACK_ENABLED !== 'false')),
+      fallbackProvider: options.fallbackProvider || new RuleBasedProvider(options)
+    });
+  }
+
+  return new RuleBasedProvider(options);
+}
+
+// Export service, providers, and factory
 module.exports = {
   CodingAIService,
   CodingProvider,
-  RuleBasedProvider
+  RuleBasedProvider,
+  createCodingProvider,
+  get NLPProvider() { return require('./nlpProvider'); }
 };

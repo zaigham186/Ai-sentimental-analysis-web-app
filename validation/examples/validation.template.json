@@ -1,0 +1,39 @@
+{
+  "$schema": "../dataset.schema.json",
+  "version": "1.0.0",
+  "description": "Human Gold-Label Research Validation Dataset Template for M.Phil Research",
+  "created_at": "2026-09-11T00:00:00Z",
+  "coders": ["researcher_1", "researcher_2"],
+  "is_synthetic_benchmark": false,
+  "items": [
+    {
+      "id": "val-template-001",
+      "text": "Insert participant response text here",
+      "language": "english",
+      "context": {
+        "videoTopic": "Online Harassment Experiment",
+        "condition": "anonymous"
+      },
+      "human": {
+        "sentiment": "negative",
+        "toxicity": false,
+        "aggression": "none",
+        "aggression_score": 0.0,
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "cyberbullying_severity": 0.0,
+        "is_personally_targeted": false,
+        "coder_id": "researcher_1"
+      },
+      "secondary_human": {
+        "sentiment": "negative",
+        "toxicity": false,
+        "aggression": "none",
+        "cyberbullying": false,
+        "cyberbullying_type": "none",
+        "coder_id": "researcher_2"
+      },
+      "notes": "Research notes on linguistic context, code-switching, or rationale"
+    }
+  ]
+}

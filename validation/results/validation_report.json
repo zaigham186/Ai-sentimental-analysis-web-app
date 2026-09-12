@@ -1,0 +1,59 @@
+{
+  "validation_status": "Benchmark Validated",
+  "is_validated": true,
+  "is_synthetic_benchmark": true,
+  "sample_count": 15,
+  "timestamp": "2026-09-11T06:55:23.991139+00:00",
+  "models": {
+    "sentiment": "cardiffnlp/twitter-xlm-roberta-base-sentiment",
+    "toxicity": "Detoxify (multilingual)",
+    "aggression": "Xu et al. (2020) Lexicon Model",
+    "cyberbullying": "Research Operational Multi-Dimensional Definition"
+  },
+  "summary": {
+    "cyberbullying": {
+      "accuracy": 0.9333,
+      "precision": 0.8,
+      "recall": 1.0,
+      "f1": 0.8889,
+      "cohen_kappa": 0.8421
+    },
+    "sentiment": {
+      "accuracy": 0.8,
+      "macro_f1": 0.648,
+      "cohen_kappa": 0.6218
+    },
+    "toxicity": {
+      "accuracy": 1.0,
+      "f1": 1.0
+    },
+    "aggression": {
+      "accuracy": 0.8,
+      "macro_f1": 0.6076
+    }
+  },
+  "threshold_calibration": {
+    "cyberbullying_optimal": 0.5,
+    "cyberbullying_best_f1": 0.8889,
+    "toxicity_optimal": 0.3
+  },
+  "inter_rater": {
+    "secondary_coder_available": true,
+    "sample_count": 15,
+    "cohen_kappa": {
+      "sentiment": 0.8684,
+      "cyberbullying": 1.0,
+      "toxicity": 1.0,
+      "aggression": 1.0
+    }
+  },
+  "error_summary": {
+    "total_discrepancies": 4,
+    "breakdown": {
+      "INSULT_WITHOUT_CYBERBULLYING": 1,
+      "SARCASM_AMBIGUITY": 1,
+      "SENTIMENT_POLARITY_MISMATCH": 1,
+      "MIXED_VALENCE_DISCREPANCY": 1
+    }
+  }
+}

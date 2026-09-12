@@ -1,6 +1,7 @@
 const express = require('express');
 const codingController = require('../controllers/codingController');
 const { authenticateAdmin, requireResearcher } = require('../middleware/adminAuth');
+const { nlpLimiter } = require('../middleware/security');
 
 const router = express.Router();
 
@@ -17,6 +18,14 @@ const router = express.Router();
  * NOTE: Must come before /responses/:id to avoid route conflict
  */
 router.get('/stats', authenticateAdmin, requireResearcher, codingController.getStatistics);
+
+/**
+ * GET /api/admin/coding/validation-status
+ * Get research NLP validation and calibration status
+ * Phase 6: Research Validation & Calibration
+ * NOTE: Must come before /responses/:id to avoid route conflict
+ */
+router.get('/validation-status', authenticateAdmin, requireResearcher, codingController.getValidationStatus);
 
 /**
  * GET /api/admin/coding/config
@@ -49,16 +58,18 @@ router.get('/responses/:id', authenticateAdmin, requireResearcher, codingControl
 /**
  * POST /api/admin/coding/bulk-analyze
  * Bulk AI analysis of multiple responses
+ * Hardened with nlpLimiter for resource protection
  * Phase 10 Enhancement: AI-Assisted Coding
  */
-router.post('/bulk-analyze', authenticateAdmin, requireResearcher, codingController.bulkAnalyze);
+router.post('/bulk-analyze', authenticateAdmin, requireResearcher, nlpLimiter, codingController.bulkAnalyze);
 
 /**
  * POST /api/admin/coding/:id/analyze
  * Trigger AI analysis for a response
+ * Hardened with nlpLimiter for resource protection
  * Phase 10 Enhancement: AI-Assisted Coding
  */
-router.post('/:id/analyze', authenticateAdmin, requireResearcher, codingController.analyzeWithAI);
+router.post('/:id/analyze', authenticateAdmin, requireResearcher, nlpLimiter, codingController.analyzeWithAI);
 
 /**
  * POST /api/admin/coding/:id/review

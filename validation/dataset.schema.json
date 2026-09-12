@@ -1,0 +1,132 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ResearchValidationDataset",
+  "description": "Schema for human-labeled validation and benchmark datasets in cyberbullying research",
+  "type": "object",
+  "required": ["version", "items"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Version of the validation dataset specification"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the validation dataset or benchmark source"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "coders": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of researcher coder identifiers"
+    },
+    "is_synthetic_benchmark": {
+      "type": "boolean",
+      "description": "True if synthetic benchmark for testing pipeline; False if real human empirical data"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "text", "human"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the response item"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Participant response text under evaluation"
+          },
+          "language": {
+            "type": "string",
+            "enum": ["english", "urdu", "roman_urdu", "mixed", "other"],
+            "default": "english"
+          },
+          "context": {
+            "type": "object",
+            "properties": {
+              "videoTopic": { "type": "string" },
+              "condition": { "type": "string" }
+            }
+          },
+          "human": {
+            "type": "object",
+            "required": ["sentiment", "toxicity", "aggression", "cyberbullying"],
+            "properties": {
+              "sentiment": {
+                "type": "string",
+                "enum": ["positive", "neutral", "negative", "mixed"]
+              },
+              "toxicity": {
+                "type": "boolean",
+                "description": "Whether the text constitutes toxic/abusive language"
+              },
+              "aggression": {
+                "type": "string",
+                "enum": ["none", "mild", "moderate", "severe"]
+              },
+              "aggression_score": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "cyberbullying": {
+                "type": "boolean",
+                "description": "Whether the text meets operational criteria for cyberbullying"
+              },
+              "cyberbullying_type": {
+                "type": "string",
+                "enum": ["none", "harassment", "denigration", "flaming", "threat", "impersonation", "outing", "exclusion", "cyberstalking", "other"]
+              },
+              "cyberbullying_severity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "is_personally_targeted": {
+                "type": "boolean"
+              },
+              "coder_id": {
+                "type": "string"
+              }
+            }
+          },
+          "secondary_human": {
+            "type": "object",
+            "description": "Optional secondary coder labels for human-vs-human Cohen's kappa calculation",
+            "properties": {
+              "sentiment": {
+                "type": "string",
+                "enum": ["positive", "neutral", "negative", "mixed"]
+              },
+              "toxicity": {
+                "type": "boolean"
+              },
+              "aggression": {
+                "type": "string",
+                "enum": ["none", "mild", "moderate", "severe"]
+              },
+              "cyberbullying": {
+                "type": "boolean"
+              },
+              "cyberbullying_type": {
+                "type": "string"
+              },
+              "coder_id": {
+                "type": "string"
+              }
+            }
+          },
+          "notes": {
+            "type": "string",
+            "description": "Qualitative linguistic or research notes"
+          }
+        }
+      }
+    }
+  }
+}

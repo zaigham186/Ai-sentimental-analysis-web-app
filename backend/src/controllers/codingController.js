@@ -1,8 +1,12 @@
+const fs = require('fs');
+const path = require('path');
+const axios = require('axios');
+const mongoose = require('mongoose');
 const { VideoResponse, Coding } = require('../models');
-const { CodingAIService, RuleBasedProvider } = require('../services/codingAI');
+const { CodingAIService, createCodingProvider, RuleBasedProvider } = require('../services/codingAI');
 
-// Initialize AI coding service
-const codingAI = new CodingAIService(new RuleBasedProvider());
+// Initialize AI coding service with configurable provider (NLP primary, RuleBased fallback)
+const codingAI = new CodingAIService(createCodingProvider());
 
 /**
  * Coding Controller
@@ -112,7 +116,15 @@ const getAllResponses = async (req, res) => {
  */
 const getResponseById = async (req, res) => {
   try {
-    const response = await VideoResponse.findById(req.params.id)
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid response ID format'
+      });
+    }
+
+    const response = await VideoResponse.findById(id)
       .populate('participant', 'username name condition displayName')
       .populate('video', 'title topic description order');
 
@@ -135,11 +147,17 @@ const getResponseById = async (req, res) => {
     const responseObj = response.toObject();
     responseObj.id = responseObj._id.toString(); // FIXED: Add id field for frontend
 
+    let codingObj = null;
+    if (coding) {
+      codingObj = coding.toObject();
+      codingObj.id = codingObj._id.toString();
+    }
+
     res.json({
       success: true,
       data: {
         response: responseObj,
-        coding: coding ? coding.toObject() : null,
+        coding: codingObj,
         coded: isActuallyCoded
       }
     });
@@ -167,6 +185,14 @@ const createCoding = async (req, res) => {
       confidence,
       codingVersion
     } = req.body;
+
+    // Validate response ID format
+    if (!responseId || !mongoose.Types.ObjectId.isValid(responseId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid response ID format'
+      });
+    }
 
     // Validate response exists
     const response = await VideoResponse.findById(responseId);
@@ -235,7 +261,15 @@ const createCoding = async (req, res) => {
  */
 const updateCoding = async (req, res) => {
   try {
-    const coding = await Coding.findById(req.params.id);
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid coding ID format'
+      });
+    }
+
+    const coding = await Coding.findById(id);
 
     if (!coding) {
       return res.status(404).json({
@@ -297,7 +331,15 @@ const updateCoding = async (req, res) => {
  */
 const deleteCoding = async (req, res) => {
   try {
-    const coding = await Coding.findById(req.params.id);
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid coding ID format'
+      });
+    }
+
+    const coding = await Coding.findById(id);
 
     if (!coding) {
       return res.status(404).json({
@@ -476,6 +518,13 @@ const analyzeWithAI = async (req, res) => {
   try {
     const { id } = req.params;
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid response ID format'
+      });
+    }
+
     // Get the response
     const response = await VideoResponse.findById(id)
       .populate('participant', 'username name condition')
@@ -542,6 +591,7 @@ const analyzeWithAI = async (req, res) => {
           criteriaMatched: aiAnalysis.cyberbullying.criteriaMatched || [],
           needsReview: aiAnalysis.cyberbullying.needsReview
         },
+        metadata: aiAnalysis.metadata,
         modelName: aiAnalysis.metadata?.provider || 'rule-based',
         modelVersion: aiAnalysis.metadata?.version || '1.0',
         detectedLanguage: aiAnalysis.metadata?.detectedLanguage,
@@ -579,6 +629,7 @@ const analyzeWithAI = async (req, res) => {
             criteriaMatched: aiAnalysis.cyberbullying.criteriaMatched || [],
             needsReview: aiAnalysis.cyberbullying.needsReview
           },
+          metadata: aiAnalysis.metadata,
           modelName: aiAnalysis.metadata?.provider || 'rule-based',
           modelVersion: aiAnalysis.metadata?.version || '1.0',
           detectedLanguage: aiAnalysis.metadata?.detectedLanguage,
@@ -631,8 +682,18 @@ const reviewAISuggestion = async (req, res) => {
       });
     }
 
-    // Get coding
-    const coding = await Coding.findById(id);
+    // Get coding (lookup by coding ID or by response ID)
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid ID format'
+      });
+    }
+
+    let coding = await Coding.findById(id);
+    if (!coding) {
+      coding = await Coding.findPrimaryCoding(id);
+    }
     if (!coding) {
       return res.status(404).json({
         success: false,
@@ -723,6 +784,7 @@ const reviewAISuggestion = async (req, res) => {
     coding.cyberbullying = finalCyberbullying;
     coding.notes = notes || coding.notes;
     coding.reviewStatus = 'reviewed';
+    coding.reviewAction = action === 'accept' ? 'accepted_ai' : (action === 'modify' ? 'modified' : (action === 'reject' ? 'rejected' : action));
     coding.codedBy = req.admin.id;
     coding.codedAt = new Date();
     coding.auditTrail = coding.auditTrail || [];
@@ -836,6 +898,15 @@ const bulkAnalyze = async (req, res) => {
     let responsesToAnalyze = [];
 
     if (responseIds && Array.isArray(responseIds)) {
+      // Validate all IDs
+      const invalidIds = responseIds.filter(rid => !mongoose.Types.ObjectId.isValid(rid));
+      if (invalidIds.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'One or more response IDs are invalid'
+        });
+      }
+
       // Analyze specific responses
       responsesToAnalyze = await VideoResponse.find({ _id: { $in: responseIds } })
         .populate('participant', 'condition')
@@ -917,6 +988,11 @@ const bulkAnalyze = async (req, res) => {
             aggression: aiAnalysis.aggression,
             cyberbullying: aiAnalysis.cyberbullying,
             metadata: aiAnalysis.metadata,
+            modelName: aiAnalysis.metadata?.provider || 'rule-based',
+            modelVersion: aiAnalysis.metadata?.version || '1.0',
+            detectedLanguage: aiAnalysis.metadata?.detectedLanguage,
+            languageConfidence: aiAnalysis.metadata?.languageConfidence,
+            needsHumanReview: aiAnalysis.needsHumanReview,
             analyzedAt: new Date()
           },
           reviewStatus: 'pending',
@@ -948,6 +1024,87 @@ const bulkAnalyze = async (req, res) => {
   }
 };
 
+/**
+ * Get Research NLP Validation & Calibration Status
+ * GET /api/admin/coding/validation-status
+ * Phase 6: Research Validation & Calibration
+ */
+const getValidationStatus = async (req, res) => {
+  try {
+    // 1. Check live FastAPI NLP service health
+    let nlpHealth = {
+      available: false,
+      modelsReady: false,
+      models: {
+        sentiment: 'Unavailable',
+        toxicity: 'Unavailable',
+        aggression: 'Unavailable',
+        cyberbullying: 'Unavailable'
+      }
+    };
+
+    const nlpUrl = process.env.NLP_SERVICE_URL || 'http://127.0.0.1:8001';
+    try {
+      const healthRes = await axios.get(`${nlpUrl}/health`, { timeout: 2000 });
+      if (healthRes.data?.status === 'healthy') {
+        nlpHealth = {
+          available: true,
+          modelsReady: !!healthRes.data.models_ready,
+          models: {
+            sentiment: 'cardiffnlp/twitter-xlm-roberta-base-sentiment',
+            toxicity: 'Detoxify (multilingual)',
+            aggression: 'Xu et al. (2020) Lexicon Model',
+            cyberbullying: 'Research Operational Criteria'
+          }
+        };
+      }
+    } catch (e) {
+      // NLP microservice offline or unreachable
+    }
+
+    // 2. Check for validation report JSON artifact
+    const reportPath = path.resolve(__dirname, '../../../validation/results/validation_report.json');
+    let validationData = null;
+
+    if (fs.existsSync(reportPath)) {
+      try {
+        const rawContent = fs.readFileSync(reportPath, 'utf8');
+        validationData = JSON.parse(rawContent);
+      } catch (err) {
+        console.error('Error reading validation_report.json:', err.message);
+      }
+    }
+
+    if (!validationData || !validationData.is_validated) {
+      return res.json({
+        success: true,
+        data: {
+          validation_status: 'Not validated',
+          is_validated: false,
+          sample_count: 0,
+          message: 'VALIDATION NOT AVAILABLE — HUMAN GOLD LABELS REQUIRED',
+          nlpHealth
+        }
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        ...validationData,
+        nlpHealth
+      }
+    });
+  } catch (error) {
+    console.error('Validation status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve validation status',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAllResponses,
   getResponseById,
@@ -960,5 +1117,7 @@ module.exports = {
   analyzeWithAI,
   reviewAISuggestion,
   getPendingReview,
-  bulkAnalyze
+  bulkAnalyze,
+  // Phase 6: Research Validation & Calibration
+  getValidationStatus
 };

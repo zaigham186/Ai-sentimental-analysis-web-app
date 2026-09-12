@@ -32,6 +32,14 @@ const config = {
     experimentEngine: false,
     questionnaires: false,
     adminDashboard: false
+  },
+
+  // NLP Service Configuration (Phase 4)
+  nlp: {
+    enabled: process.env.NLP_PROVIDER_ENABLED === 'true',
+    fallbackEnabled: process.env.NLP_FALLBACK_ENABLED !== 'false',
+    serviceUrl: process.env.NLP_SERVICE_URL || 'http://127.0.0.1:8001',
+    timeoutMs: parseInt(process.env.NLP_SERVICE_TIMEOUT_MS, 10) || 30000
   }
 };
 

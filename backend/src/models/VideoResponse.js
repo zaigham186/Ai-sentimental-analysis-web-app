@@ -25,7 +25,13 @@ const videoResponseSchema = new mongoose.Schema({
     required: [true, 'Response text is required'],
     minlength: [1, 'Response cannot be empty'],
     maxlength: [5000, 'Response cannot exceed 5000 characters'],
-    immutable: true // Mongoose will prevent updates to this field
+    immutable: true, // Mongoose will prevent updates to this field
+    set: function(val) {
+      if (!this.isNew && this._originalResponseText && val !== this._originalResponseText) {
+        throw new Error('Response text is immutable and cannot be modified');
+      }
+      return val;
+    }
   },
   
   // Response metrics
@@ -62,9 +68,33 @@ videoResponseSchema.index({ submittedAt: -1 });
 videoResponseSchema.index({ participant: 1 });
 videoResponseSchema.index({ video: 1 });
 
-// Pre-save hook to calculate metrics
+// Track original responseText on loaded documents
+videoResponseSchema.post('init', function() {
+  this._originalResponseText = this.responseText;
+});
+
+// Pre-validate hook to calculate metrics before required validation check
+videoResponseSchema.pre('validate', function(next) {
+  if (!this.isNew && this.isDirectModified('responseText')) {
+    return next(new Error('Response text is immutable and cannot be modified'));
+  }
+  if (this.responseText) {
+    if (this.responseLength === undefined || this.responseLength === null) {
+      this.responseLength = this.responseText.length;
+    }
+    if (this.responseWordCount === undefined || this.responseWordCount === null || this.responseWordCount === 0) {
+      this.responseWordCount = this.responseText.trim().split(/\s+/).length;
+    }
+  }
+  next();
+});
+
+// Pre-save hook to calculate metrics and enforce immutability
 videoResponseSchema.pre('save', function(next) {
-  if (this.isNew) {
+  if (!this.isNew && this.isModified('responseText')) {
+    return next(new Error('Response text is immutable and cannot be modified'));
+  }
+  if (this.isNew && this.responseText) {
     this.responseLength = this.responseText.length;
     this.responseWordCount = this.responseText.trim().split(/\s+/).length;
   }

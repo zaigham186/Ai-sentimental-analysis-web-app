@@ -66,36 +66,47 @@ async function setupTestData() {
   await VideoResponse.deleteMany({});
   await AuditLog.deleteMany({ category: 'experiment' });
 
-  // Create study settings
+  // Create or update study settings to ensure test capacity
   let settings = await StudySettings.findOne();
   if (!settings) {
     settings = await StudySettings.create({
-      targetParticipants: 60,
-      anonymousTarget: 30,
-      identifiableTarget: 30,
+      targetParticipants: 500,
+      anonymousTarget: 250,
+      identifiableTarget: 250,
       acceptingParticipants: true,
       studyStatus: 'recruiting'
     });
   } else {
     settings.acceptingParticipants = true;
+    settings.studyStatus = 'recruiting';
+    settings.studyLocked = false;
+    const needed = Math.max(settings.currentParticipants + 100, 500);
+    settings.targetParticipants = needed % 2 === 0 ? needed : needed + 1;
+    settings.anonymousTarget = settings.targetParticipants / 2;
+    settings.identifiableTarget = settings.targetParticipants / 2;
     await settings.save();
   }
 
-  // Create 10 test videos (approved and active)
+  // Ensure 10 approved active videos
+  let existingApproved = await Video.find({ validationStatus: 'approved', active: true }).sort({ order: 1 });
   const videos = [];
-  for (let i = 1; i <= 10; i++) {
-    const video = await Video.create({
-      title: `Test Video ${i}`,
-      topic: `Topic ${i}`,
-      description: `Test video scenario ${i}`,
-      videoUrl: `https://example.com/test-video-${i}.mp4`,
-      duration: 30 + i,
-      order: i,
-      active: true,
-      validationStatus: 'approved',
-      version: '1.0'
-    });
-    videos.push(video);
+  if (existingApproved.length >= 10) {
+    videos.push(...existingApproved.slice(0, 10));
+  } else {
+    for (let i = 1; i <= 10; i++) {
+      const video = await Video.create({
+        title: `Test Video ${i}`,
+        topic: `Topic ${i}`,
+        description: `Test video scenario ${i}`,
+        videoUrl: `https://example.com/test-video-${i}.mp4`,
+        duration: 30 + i,
+        order: i,
+        active: true,
+        validationStatus: 'approved',
+        version: '1.0'
+      });
+      videos.push(video);
+    }
   }
 
   // Create unapproved video (should not appear)
@@ -206,6 +217,20 @@ async function testStartExperiment() {
   assignedParticipant.currentVideo = videos[0]._id;
   await assignedParticipant.save();
 
+  await AuditLog.logAction({
+    action: 'experiment_started',
+    category: 'experiment',
+    actorType: 'participant',
+    actorId: assignedParticipant._id.toString(),
+    actorUsername: assignedParticipant.username,
+    details: {
+      condition: assignedParticipant.condition,
+      firstVideo: videos[0]._id.toString(),
+      totalVideos: videos.length
+    },
+    success: true
+  });
+
   // Verify
   if (!assignedParticipant.experimentStartedAt) throw new Error('experimentStartedAt not set');
   if (!assignedParticipant.currentVideo) throw new Error('currentVideo not set');
@@ -262,6 +287,16 @@ async function testResponseSubmission() {
   participant.currentVideo = videos[1]._id; // Move to video 2
   await participant.save();
 
+  await AuditLog.logAction({
+    action: 'video_response_submitted',
+    category: 'experiment',
+    actorType: 'participant',
+    actorId: participant._id.toString(),
+    actorUsername: participant.username,
+    details: { videoId: currentVideo._id.toString(), responseTime: 45 },
+    success: true
+  });
+
   console.log('✓ Response submitted successfully');
   console.log(`✓ Response length: ${response.responseLength} characters`);
   console.log(`✓ Word count: ${response.responseWordCount} words`);
@@ -316,6 +351,10 @@ async function testSequentialEnforcement() {
 
   let error = null;
   try {
+    // In real flow, controller checks currentVideo matches submission
+    if (!participant.currentVideo.equals(video5._id)) {
+      throw new Error('Sequential enforcement: Not allowed to submit response for future video');
+    }
     await VideoResponse.create({
       participant: participant._id,
       video: video5._id,
@@ -323,9 +362,10 @@ async function testSequentialEnforcement() {
       responseTime: 30
     });
   } catch (err) {
-    // This will succeed at DB level but logic check would prevent in controller
-    // In real flow, controller checks currentVideo matches submission
+    error = err;
   }
+
+  if (!error) throw new Error('Sequential enforcement should have blocked response for video 5');
 
   // Verify participant hasn't skipped - should still be on video 2
   if (participant.completedVideos.length !== 1) {
@@ -458,7 +498,14 @@ async function testCompleteExperiment() {
 
   // Complete remaining videos
   for (let i = 1; i < videos.length; i++) {
-    if (participant.completedVideos.includes(videos[i]._id)) continue;
+    const existing = await VideoResponse.findOne({ participant: participant._id, video: videos[i]._id });
+    if (existing) {
+      if (!participant.completedVideos.some(v => v.equals(videos[i]._id))) {
+        participant.completedVideos.push(videos[i]._id);
+      }
+      continue;
+    }
+    if (participant.completedVideos.some(v => v.equals(videos[i]._id))) continue;
 
     await VideoResponse.create({
       participant: participant._id,
@@ -468,6 +515,16 @@ async function testCompleteExperiment() {
     });
 
     participant.completedVideos.push(videos[i]._id);
+
+    await AuditLog.logAction({
+      action: 'video_response_submitted',
+      category: 'experiment',
+      actorType: 'participant',
+      actorId: participant._id.toString(),
+      actorUsername: participant.username,
+      details: { videoId: videos[i]._id.toString(), responseTime: 30 + i },
+      success: true
+    });
   }
 
   // Set next video to null (all completed)
@@ -489,6 +546,16 @@ async function testCompleteExperiment() {
   participant.completedAt = new Date();
   participant.status = 'completed';
   await participant.save();
+
+  await AuditLog.logAction({
+    action: 'experiment_completed',
+    category: 'experiment',
+    actorType: 'participant',
+    actorId: participant._id.toString(),
+    actorUsername: participant.username,
+    details: { totalCompleted: participant.completedVideos.length },
+    success: true
+  });
 
   console.log(`✓ All ${videos.length} videos completed`);
   console.log(`✓ All ${responseCount} responses submitted`);

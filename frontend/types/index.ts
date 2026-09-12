@@ -320,33 +320,82 @@ export interface AICodingSuggestion {
   sentiment: {
     label: 'positive' | 'neutral' | 'negative' | 'mixed' | null;
     confidence: number;
+    score?: number;
+    probabilities?: {
+      positive?: number;
+      neutral?: number;
+      negative?: number;
+    };
     evidence: string;
     needsReview: boolean;
   };
   aggression: {
-    label: 'none' | 'mild' | 'moderate' | 'severe';
+    label: 'none' | 'mild' | 'moderate' | 'severe' | null;
     level: number;
+    score?: number;
+    normalizedScore?: number;
     confidence: number;
     evidence: string;
+    matchedIndicators?: string[];
+    categories?: string[];
+    evidenceItems?: Array<{
+      term: string;
+      category: string;
+      weight?: number;
+      start?: number;
+      end?: number;
+    }>;
+    isPersonallyTargeted?: boolean;
+    method?: string;
     needsReview: boolean;
   };
   cyberbullying: {
     present: boolean;
-    type: 'none' | 'harassment' | 'denigration' | 'flaming' | 'impersonation' | 'outing' | 'exclusion' | 'cyberstalking' | 'other';
+    classification?: string; // 'cyberbullying' | 'not_cyberbullying' | 'needs_review' | 'insufficient_evidence'
+    type: 'none' | 'harassment' | 'denigration' | 'flaming' | 'impersonation' | 'outing' | 'exclusion' | 'cyberstalking' | 'threat' | 'other' | null;
     severity: number;
+    rawSeverity?: number;
+    score?: number;
     confidence: number;
     evidence: string;
     criteriaMatched: string[];
+    reasonCodes?: string[];
+    method?: string;
+    limitations?: string[];
     needsReview: boolean;
   };
   metadata: {
-    provider: string;
-    version: string;
+    provider: string; // 'nlp' | 'rule-based'
+    version?: string;
+    provider_version?: string;
     analyzedAt: string;
     detectedLanguage?: string;
     languageConfidence?: number;
     responseLength?: number;
     wordCount?: number;
+    // Phase 2-4 NLP fields:
+    fallback_used?: boolean;
+    fallback_reason?: string | null;
+    fallback_at?: string;
+    sentiment_model?: string;
+    toxicity_model?: string;
+    aggression_method?: string;
+    cyberbullying_method?: string;
+    toxicity?: {
+      toxicity?: number;
+      severe_toxicity?: number;
+      insult?: number;
+      threat?: number;
+      obscene?: number;
+      identity_attack?: number;
+      sexual_explicit?: number;
+      [key: string]: number | undefined;
+    };
+    toxicity_score?: number;
+    is_toxic?: boolean;
+    processing_time_ms?: number;
+    device?: string;
+    requestId?: string | null;
   };
 }
 
@@ -385,6 +434,7 @@ export interface AuditTrailEntry {
 
 export interface Coding {
   id: string;
+  _id?: string;
   response: string;
   sentiment?: 'positive' | 'neutral' | 'negative' | 'mixed';
   aggression: {
@@ -411,7 +461,7 @@ export interface Coding {
   updatedAt: string;
   // Phase 10 Enhancement: AI-Assisted Coding
   aiCoding?: AICodingSuggestion;
-  reviewStatus?: 'pending' | 'reviewed' | 'uncertain';
+  reviewStatus?: 'pending' | 'reviewed' | 'uncertain' | 'not_applicable';
   auditTrail?: AuditTrailEntry[];
 }
 
@@ -749,7 +799,7 @@ export interface ResponseWithDetails {
   coded: boolean;
 }
 
-export interface ResponseDetail {
+export interface ResponseManagementDetail {
   response: ResponseWithDetails;
   coding: Coding | null;
 }
@@ -765,6 +815,242 @@ export interface ResponseStatistics {
   };
 }
 
-// Future types to be implemented:
-// export interface Questionnaire {}
-// export interface QuestionnaireResponse {}
+// ============================================================================
+// PHASE 7: RESEARCH ANALYTICS & REPORTING TYPES
+// ============================================================================
+
+export interface ResearchOverviewMetrics {
+  summary: {
+    totalResponses: number;
+    finalCodedCount: number;
+    pendingReviewCount: number;
+    uncodedCount: number;
+    codingCompletionRate: number;
+    cyberbullyingCount: number;
+    cyberbullyingRate: number;
+    aggressiveCount: number;
+    aggressiveRate: number;
+    toxicCount: number;
+    toxicRate: number;
+  };
+  sentiment: {
+    positive: number;
+    neutral: number;
+    negative: number;
+    mixed: number;
+    positivePct: number;
+    neutralPct: number;
+    negativePct: number;
+  };
+  activeFilters: Record<string, any>;
+  dataLevel: string;
+}
+
+export interface ResearchSentimentAnalytics {
+  distribution: {
+    counts: Record<string, number>;
+    percentages: Record<string, number>;
+    validTotal: number;
+    missingCount: number;
+    totalItems: number;
+  };
+  totalCoded: number;
+  activeFilters: Record<string, any>;
+  constructNote: string;
+}
+
+export interface ResearchToxicityAnalytics {
+  toxicCount: number;
+  nonToxicCount: number;
+  toxicPercentage: number;
+  nonToxicPercentage: number;
+  validTotal: number;
+  missingCount: number;
+  subcategories: Record<string, { count: number; percentage: number }>;
+  activeFilters: Record<string, any>;
+  constructNote: string;
+}
+
+export interface ResearchAggressionAnalytics {
+  categoryDistribution: {
+    counts: Record<string, number>;
+    percentages: Record<string, number>;
+    validTotal: number;
+    missingCount: number;
+  };
+  scoreSummary: {
+    mean: number | null;
+    median: number | null;
+    min: number | null;
+    max: number | null;
+    validCount: number;
+    missingCount: number;
+  };
+  totalCoded: number;
+  activeFilters: Record<string, any>;
+  framework: string;
+}
+
+export interface ResearchCyberbullyingAnalytics {
+  presenceDistribution: {
+    counts: { present: number; absent: number };
+    percentages: { present: number; absent: number };
+    validTotal: number;
+    missingCount: number;
+  };
+  typeDistribution: {
+    counts: Record<string, number>;
+    percentages: Record<string, number>;
+    validTotal: number;
+    missingCount: number;
+  };
+  severitySummary: {
+    mean: number | null;
+    median: number | null;
+    min: number | null;
+    max: number | null;
+    validCount: number;
+    missingCount: number;
+  };
+  totalCoded: number;
+  activeFilters: Record<string, any>;
+  criticalRule: string;
+}
+
+export interface ResearchConditionMetrics {
+  totalResponses: number;
+  codedResponses: number;
+  cyberbullying: { count: number; percentage: number };
+  aggression: { count: number; percentage: number; meanScore: number | null };
+  sentiment: {
+    negative: { count: number; percentage: number };
+    positive: { count: number; percentage: number };
+    neutral: { count: number; percentage: number };
+  };
+}
+
+export interface ResearchConditionComparison {
+  anonymous: ResearchConditionMetrics;
+  identifiable: ResearchConditionMetrics;
+  note: string;
+}
+
+export interface ResearchVideoComparisonItem {
+  videoId: string;
+  title: string;
+  order: number;
+  responseCount: number;
+  codedCount: number;
+  cyberbullyingRate: number;
+  aggressionRate: number;
+  negativeSentimentRate: number;
+}
+
+export interface ResearchDiscrepancyItem {
+  codingId: string;
+  responseId: string;
+  responseTextSnippet: string;
+  participantCondition: string;
+  videoTitle: string;
+  ai: {
+    sentiment: string;
+    aggression: string;
+    cyberbullying: string;
+  };
+  final: {
+    sentiment: string;
+    aggression: string;
+    cyberbullying: string;
+  };
+  reviewAction: string;
+  reviewedAt: string;
+}
+
+export interface ResearchAIHumanAgreement {
+  summary: {
+    totalWithAI: number;
+    totalReviewed: number;
+    pendingReview: number;
+    acceptedCount: number;
+    modifiedCount: number;
+    rejectedCount: number;
+    acceptedPercentage: number;
+    modifiedPercentage: number;
+    rejectedPercentage: number;
+    discrepancyCount: number;
+    discrepancyRate: number;
+  };
+  discrepancies: ResearchDiscrepancyItem[];
+  note: string;
+}
+
+export interface ResearchResponseTableRow {
+  codingId: string;
+  responseId: string;
+  participantId: string;
+  condition: string;
+  videoTitle: string;
+  videoOrder: number;
+  responseText: string;
+  finalCoding: {
+    sentiment: string;
+    aggressionCategory: string;
+    aggressionLevel: number | null;
+    cyberbullyingPresent: boolean | null;
+    cyberbullyingType: string;
+  };
+  aiSuggestion: {
+    sentiment: string;
+    aggression: string;
+    cyberbullying: boolean | null;
+  };
+  reviewStatus: string;
+  reviewAction: string | null;
+  reviewedAt: string | null;
+}
+
+export interface ResearchResponsesTableResponse {
+  rows: ResearchResponseTableRow[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalRecords: number;
+    totalPages: number;
+  };
+}
+
+export interface ResearchValidationData {
+  is_validated: boolean;
+  validation_status: string;
+  is_synthetic_benchmark?: boolean;
+  sample_count?: number;
+  timestamp?: string;
+  models?: Record<string, string>;
+  summary?: Record<string, any>;
+  threshold_calibration?: Record<string, any>;
+  inter_rater?: Record<string, any>;
+  confusion_matrices?: Record<string, any>;
+  metrics?: Record<string, any>;
+  message?: string;
+}
+
+export interface ResearchSupervisorReport {
+  metadata: {
+    project: string;
+    generatedAt: string;
+    filtersApplied: Record<string, any>;
+    primaryCoderFramework: string;
+    provenance: string;
+  };
+  overview: ResearchOverviewMetrics;
+  sentiment: ResearchSentimentAnalytics;
+  toxicity: ResearchToxicityAnalytics;
+  aggression: ResearchAggressionAnalytics;
+  cyberbullying: ResearchCyberbullyingAnalytics;
+  conditionComparison: ResearchConditionComparison;
+  videoComparison: ResearchVideoComparisonItem[];
+  aiHuman: ResearchAIHumanAgreement;
+  validation: ResearchValidationData;
+  methodologyNote: string;
+}
+

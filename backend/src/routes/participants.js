@@ -5,20 +5,23 @@ const { consentValidation, registrationValidation, validate } = require('../vali
 const { authenticateParticipant, checkExistingSession } = require('../middleware/participantAuth');
 const rateLimit = require('express-rate-limit');
 
+const config = require('../config');
+
 /**
  * Participant Routes
  * Handles consent, registration, and session management
  */
 
-// Stricter rate limiting for registration endpoints
-// TEMPORARILY DISABLED FOR TESTING - RE-ENABLE FOR PRODUCTION!
+// Stricter rate limiting for registration endpoints (environment-aware: 10 per 15 min in production, 1000 in test)
 const registrationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Increased for testing (was 5)
+  max: config.nodeEnv === 'test' ? 1000 : 10,
   message: {
     success: false,
     message: 'Too many registration attempts. Please try again later.'
-  }
+  },
+  standardHeaders: true,
+  legacyHeaders: false
 });
 
 /**
@@ -26,8 +29,7 @@ const registrationLimiter = rateLimit({
  * Submit consent form
  */
 router.post('/consent',
-  // registrationLimiter, // DISABLED FOR TESTING
-  // checkExistingSession, // DISABLED FOR TESTING
+  registrationLimiter,
   consentValidation,
   validate,
   participantController.submitConsent
@@ -38,8 +40,7 @@ router.post('/consent',
  * Register new participant
  */
 router.post('/register',
-  // registrationLimiter, // DISABLED FOR TESTING
-  // checkExistingSession, // DISABLED FOR TESTING
+  registrationLimiter,
   registrationValidation,
   validate,
   participantController.registerParticipant

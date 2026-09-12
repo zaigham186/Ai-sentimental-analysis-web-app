@@ -1,0 +1,23 @@
+# FastAPI Framework
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv
+
+# NLP Models and Libraries
+torch
+transformers
+sentencepiece
+tokenizers
+protobuf
+
+# Detoxify for toxicity analysis
+detoxify
+
+# Machine Learning
+scikit-learn
+numpy
+
+# Testing
+pytest
+httpx
