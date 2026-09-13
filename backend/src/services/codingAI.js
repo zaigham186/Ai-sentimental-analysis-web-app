@@ -454,7 +454,7 @@ function createCodingProvider(options = {}) {
   if (nlpEnabled) {
     return new NLPProvider({
       url: options.url || config.nlp?.serviceUrl || process.env.NLP_SERVICE_URL || 'http://127.0.0.1:8001',
-      timeout: options.timeout || config.nlp?.timeoutMs || parseInt(process.env.NLP_SERVICE_TIMEOUT_MS, 10) || 30000,
+      timeout: options.timeout || config.nlp?.timeoutMs || parseInt(process.env.NLP_SERVICE_TIMEOUT_MS, 10) || 120000,
       fallbackEnabled: options.fallbackEnabled !== undefined 
         ? options.fallbackEnabled 
         : (config.nlp?.fallbackEnabled ?? (process.env.NLP_FALLBACK_ENABLED !== 'false')),

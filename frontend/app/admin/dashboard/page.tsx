@@ -143,25 +143,6 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Questionnaires Section */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Questionnaires
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <StatCard
-              title="Completed"
-              value={stats.questionnaires.completed}
-              color="green"
-            />
-            <StatCard
-              title="Pending"
-              value={stats.questionnaires.pending}
-              color="yellow"
-            />
-          </div>
-        </div>
-
         {/* Coding Section */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
@@ -185,20 +166,6 @@ export default function AdminDashboardPage() {
             />
           </div>
         </div>
-
-        {/* Info Card */}
-        <Card>
-          <CardBody>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Research Progress
-            </h3>
-            <p className="text-gray-600">
-              This dashboard provides an overview of the research study progress.
-              Use the navigation menu to access detailed management features
-              (available in later phases).
-            </p>
-          </CardBody>
-        </Card>
       </div>
     </AdminLayout>
   );

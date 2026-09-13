@@ -44,7 +44,8 @@ class CyberbullyingAnalyzer:
         sentiment: Dict,
         toxicity: Dict,
         aggression: Dict,
-        context: Optional[Dict] = None
+        context: Optional[Dict] = None,
+        roman_urdu: Optional[Dict] = None
     ) -> Dict:
         """
         Evaluate cyberbullying presence using the operational criteria.
@@ -55,6 +56,7 @@ class CyberbullyingAnalyzer:
             toxicity: Toxicity analysis result dict
             aggression: Aggression analysis result dict
             context: Optional experiment context (e.g. videoTopic, condition)
+            roman_urdu: Optional Roman Urdu cyber abuse analysis dict
 
         Returns:
             Dict containing classification, type, confidence, evidence, indicators,
@@ -79,10 +81,21 @@ class CyberbullyingAnalyzer:
         agg_categories = aggression.get("categories", [])
         matched_indicators = aggression.get("matched_indicators", [])
 
+        # Extract Roman Urdu features if available
+        roman_urdu_is_abusive = bool(roman_urdu and roman_urdu.get("is_abusive", False))
+        roman_urdu_prob = float(roman_urdu.get("abuse_probability", 0.0)) if roman_urdu else 0.0
+        roman_urdu_terms = roman_urdu.get("detected_terms", []) if roman_urdu else []
+
+        if roman_urdu_is_abusive or roman_urdu_prob >= 0.50:
+            indicators.append("roman_urdu_abuse")
+            reason_codes.append("ROMAN_URDU_ABUSE_DETECTED")
+            if is_personally_targeted:
+                reason_codes.append("ROMAN_URDU_PERSONAL_TARGETING")
+
         # 1. Evaluate Aggression indicators
-        if not matched_indicators:
+        if not matched_indicators and not roman_urdu_is_abusive:
             reason_codes.append("NO_AGGRESSION_INDICATORS")
-        else:
+        elif matched_indicators:
             reason_codes.append("AGGRESSION_INDICATOR_DETECTED")
 
         if "insult" in agg_categories or tox_categories.get("insult", 0.0) >= 0.5:
@@ -133,16 +146,26 @@ class CyberbullyingAnalyzer:
             needs_review = False
             evidence.append("Contains direct personal insult or denigration targeting an individual.")
 
+        # Case A.2: Targeted Roman Urdu Cyber Abuse (Personal targeting + Roman Urdu abuse probability >= 0.50)
+        elif is_personally_targeted and (roman_urdu_is_abusive or roman_urdu_prob >= 0.50):
+            classification = "cyberbullying"
+            cb_type = "harassment"
+            severity = float(min(8.5, 5.0 + roman_urdu_prob * 3.0))
+            confidence = round(max(confidence, roman_urdu.get("confidence", 0.85)), 2)
+            needs_review = False
+            terms_str = f" (terms: {', '.join(roman_urdu_terms)})" if roman_urdu_terms else ""
+            evidence.append(f"Targeted Roman Urdu cyber abuse detected with {roman_urdu_prob * 100:.1f}% confidence{terms_str}.")
+
         # Case B: Ambiguous / Borderline cases (e.g. general hostile words, isolated insult without clear targeting)
-        elif is_toxic and not is_personally_targeted and aggression_level != "none":
+        elif (is_toxic or roman_urdu_is_abusive) and not is_personally_targeted and (aggression_level != "none" or roman_urdu_prob >= 0.65):
             classification = "needs_review"
             cb_type = "flaming"
-            severity = float(min(5.0, 3.0 + toxicity_score * 2.0))
-            confidence = 0.60
+            severity = float(min(5.5, 3.0 + max(toxicity_score, roman_urdu_prob) * 2.0))
+            confidence = 0.70
             needs_review = True
             reason_codes.append("AMBIGUOUS_CASE")
             reason_codes.append("REQUIRES_HUMAN_REVIEW")
-            evidence.append("Hostile or toxic language present without unambiguous personal targeting. Human review required to determine if targeted.")
+            evidence.append("Hostile Roman Urdu or abusive language present without unambiguous personal targeting. Human review required to determine if targeted.")
 
         elif aggression.get("needs_review") or (is_toxic and not is_personally_targeted):
             classification = "insufficient_evidence"

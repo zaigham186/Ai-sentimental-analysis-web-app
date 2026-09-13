@@ -11,6 +11,7 @@
     "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",
+    "dev:nlp": "cd nlp-service && venv\\Scripts\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8001",
     "build:frontend": "cd frontend && npm run build",
     "lint:frontend": "cd frontend && npm run lint",
     "test:backend": "cd backend && npm test"

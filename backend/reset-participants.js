@@ -1,56 +1,84 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-/**
- * Reset Participants Script
- * Deletes all test participants so you can register new ones
- */
-
 async function resetParticipants() {
   try {
-    console.log('Connecting to MongoDB...');
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/cyberbullying-research');
-    console.log('✓ Connected\n');
+    console.log('✓ Connected to database\n');
 
     const db = mongoose.connection.db;
 
-    // Delete all participants
-    console.log('Deleting all participants...');
-    const participants = db.collection('participants');
-    const result = await participants.deleteMany({});
-    console.log(`✓ Deleted ${result.deletedCount} participants`);
+    // Get participant IDs before deletion
+    const participants = await db.collection('participants').find({}).toArray();
+    const participantIds = participants.map(p => p._id);
+    
+    console.log(`Found ${participants.length} participants to remove`);
+    
+    if (participants.length === 0) {
+      console.log('\n✓ No participants to remove. Database is already clean.');
+      await mongoose.disconnect();
+      return;
+    }
 
-    // Delete all video responses
-    console.log('Deleting all video responses...');
-    const videoResponses = db.collection('videoresponses');
-    const result2 = await videoResponses.deleteMany({});
-    console.log(`✓ Deleted ${result2.deletedCount} video responses`);
+    // Delete all related data
+    console.log('\nRemoving participant data...');
+    
+    // 1. Delete video responses
+    const videoResponsesResult = await db.collection('videoresponses').deleteMany({
+      participant: { $in: participantIds }
+    });
+    console.log(`✓ Deleted ${videoResponsesResult.deletedCount} video responses`);
 
-    // Reset study settings
-    console.log('Resetting study settings...');
-    const studySettings = db.collection('studysettings');
-    await studySettings.updateOne(
+    // 2. Delete questionnaire responses
+    const questionnaireResponsesResult = await db.collection('questionnaireresponses').deleteMany({
+      participant: { $in: participantIds }
+    });
+    console.log(`✓ Deleted ${questionnaireResponsesResult.deletedCount} questionnaire responses`);
+
+    // 3. Delete coding records
+    const codingResult = await db.collection('codings').deleteMany({
+      participant: { $in: participantIds }
+    });
+    console.log(`✓ Deleted ${codingResult.deletedCount} coding records`);
+
+    // 4. Delete ALL orphaned coding records (codings without matching participants)
+    const allCodings = await db.collection('codings').find({}).toArray();
+    const allParticipantIds = (await db.collection('participants').find({}).toArray()).map(p => p._id.toString());
+    
+    const orphanedCodings = allCodings.filter(c => !allParticipantIds.includes(c.participant?.toString()));
+    if (orphanedCodings.length > 0) {
+      const orphanedIds = orphanedCodings.map(c => c._id);
+      const orphanedResult = await db.collection('codings').deleteMany({
+        _id: { $in: orphanedIds }
+      });
+      console.log(`✓ Deleted ${orphanedResult.deletedCount} orphaned coding records`);
+    }
+
+    // 5. Delete participants
+    const participantsResult = await db.collection('participants').deleteMany({});
+    console.log(`✓ Deleted ${participantsResult.deletedCount} participants`);
+
+    // 5. Reset study settings participant counts to 0
+    await db.collection('studysettings').updateOne(
       {},
       {
         $set: {
-          currentAnonymousCount: 0,
-          currentIdentifiableCount: 0,
-          lastAssignmentVersion: 0,
+          currentParticipants: 0,
+          anonymousCount: 0,
+          identifiableCount: 0,
           updatedAt: new Date()
         }
-      },
-      { upsert: true }
+      }
     );
-    console.log('✓ Study settings reset');
+    console.log('✓ Reset participant counts in study settings');
 
-    console.log('\n✓ All test data cleared!');
-    console.log('\nYou can now register new participants.');
-    
-  } catch (error) {
-    console.error('✗ Error:', error.message);
-  } finally {
+    console.log('\n✓ All participant data successfully removed!');
+    console.log('✓ System is ready for fresh participant registrations.');
+
     await mongoose.disconnect();
-    console.log('\n✓ Disconnected from MongoDB');
+  } catch (error) {
+    console.error('Error:', error.message);
+    process.exit(1);
   }
 }
 

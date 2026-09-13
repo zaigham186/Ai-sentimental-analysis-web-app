@@ -153,22 +153,18 @@ const getDashboard = async (req, res) => {
     const totalParticipants = await Participant.countDocuments();
     const anonymousParticipants = await Participant.countDocuments({ condition: 'anonymous' });
     const identifiableParticipants = await Participant.countDocuments({ condition: 'identifiable' });
-    const completedParticipants = await Participant.countDocuments({ experimentCompleted: true });
-    const incompleteParticipants = await Participant.countDocuments({ 
-      experimentStarted: true,
-      experimentCompleted: false,
-      status: { $ne: 'withdrawn' }
-    });
+    const completedParticipants = await Participant.countDocuments({ status: 'completed' });
+    const incompleteParticipants = await Participant.countDocuments({ status: 'incomplete' });
     const withdrawnParticipants = await Participant.countDocuments({ status: 'withdrawn' });
 
     // Get experiment statistics
     const totalResponses = await VideoResponse.countDocuments();
-    const completedExperiments = await Participant.countDocuments({ experimentCompleted: true });
+    const completedExperiments = await Participant.countDocuments({ status: 'completed' });
 
     // Get questionnaire statistics
     const completedQuestionnaires = await QuestionnaireResponse.countDocuments({ completed: true });
     const pendingQuestionnaires = await Participant.countDocuments({ 
-      experimentCompleted: true,
+      status: 'completed'
       // Add questionnaire completion check when implemented
     });
 

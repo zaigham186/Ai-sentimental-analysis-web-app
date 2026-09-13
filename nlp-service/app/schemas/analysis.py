@@ -142,6 +142,17 @@ class AnalysisMetadata(BaseModel):
     timestamp: float = Field(..., description="Unix timestamp of analysis")
 
 
+class RomanUrduResult(BaseModel):
+    """Roman Urdu cyber abuse analysis result"""
+    is_abusive: bool = Field(..., description="Whether content is identified as abusive/hostile Roman Urdu")
+    abuse_probability: float = Field(..., ge=0.0, le=1.0, description="Calibrated abuse probability score")
+    label: str = Field(..., description="Predicted class label: H (Hostile) or O (Others)")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score")
+    detected_terms: List[str] = Field(default_factory=list, description="Detected Roman Urdu hostile indicators")
+    method: str = Field(..., description="Model description")
+    is_ready: bool = Field(True, description="Whether Roman Urdu model was active")
+
+
 class AnalysisResponse(BaseModel):
     """
     Comprehensive analysis response - PHASE 3
@@ -155,6 +166,7 @@ class AnalysisResponse(BaseModel):
     toxicity: ToxicityResult = Field(..., description="Toxicity analysis results")
     aggression: Optional[AggressionResult] = Field(None, description="Aggression analysis results")
     cyberbullying: Optional[CyberbullyingResult] = Field(None, description="Cyberbullying analysis results")
+    roman_urdu: Optional[RomanUrduResult] = Field(None, description="Roman Urdu cyber abuse analysis results")
     metadata: AnalysisMetadata = Field(..., description="Processing metadata")
     
     model_config = ConfigDict(

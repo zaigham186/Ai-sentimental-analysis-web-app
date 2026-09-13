@@ -20,6 +20,7 @@ from .sentiment import SentimentAnalyzer
 from .toxicity import ToxicityAnalyzer
 from .aggression import AggressionAnalyzer
 from .cyberbullying import CyberbullyingAnalyzer
+from .roman_urdu import RomanUrduClassifier
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class UnifiedAnalyzer:
     """
     Unified NLP Analysis Orchestrator
     
-    Combines sentiment, toxicity, aggression, and cyberbullying analysis.
+    Combines sentiment, toxicity, aggression, cyberbullying, and Roman Urdu analysis.
     Models and resources are loaded once on startup and reused across requests.
     """
     
@@ -53,10 +54,11 @@ class UnifiedAnalyzer:
         )
         self.aggression_analyzer = AggressionAnalyzer()
         self.cyberbullying_analyzer = CyberbullyingAnalyzer()
+        self.roman_urdu_classifier = RomanUrduClassifier()
         
         self._models_loaded = False
         
-        logger.info("UnifiedAnalyzer initialized for Phase 3")
+        logger.info("UnifiedAnalyzer initialized with Roman Urdu support")
     
     def load_models(self) -> Dict[str, bool]:
         """
@@ -72,7 +74,8 @@ class UnifiedAnalyzer:
             "sentiment": self.sentiment_analyzer.load(),
             "toxicity": self.toxicity_analyzer.load(),
             "aggression": self.aggression_analyzer.load(),
-            "cyberbullying": True  # Deterministic multi-dimensional evaluation engine
+            "cyberbullying": True,  # Deterministic multi-dimensional evaluation engine
+            "roman_urdu": self.roman_urdu_classifier.load()
         }
         
         elapsed = time.time() - start_time
@@ -93,7 +96,8 @@ class UnifiedAnalyzer:
             self._models_loaded and
             self.sentiment_analyzer.is_loaded and
             self.toxicity_analyzer.is_loaded and
-            self.aggression_analyzer.is_loaded
+            self.aggression_analyzer.is_loaded and
+            self.roman_urdu_classifier.is_ready
         )
     
     def get_model_status(self) -> Dict:
@@ -120,6 +124,11 @@ class UnifiedAnalyzer:
             "cyberbullying": {
                 "loaded": True,
                 "model": self.cyberbullying_analyzer.method_name
+            },
+            "roman_urdu": {
+                "loaded": self.roman_urdu_classifier.is_ready,
+                "model": self.roman_urdu_classifier.method_name,
+                "version": self.roman_urdu_classifier.version
             }
         }
     
@@ -184,16 +193,35 @@ class UnifiedAnalyzer:
             # 2. Toxicity analysis (Detoxify)
             toxicity_result = self.toxicity_analyzer.analyze(text_stripped)
             
-            # 3. Aggression analysis (Aggression Lexicon Model framework)
+            # 3. Roman Urdu Cyber Abuse analysis (Trained Calibrated Subword Classifier)
+            roman_urdu_result = self.roman_urdu_classifier.analyze(text_stripped)
+            
+            # 4. Aggression analysis (Aggression Lexicon Model framework)
             aggression_result = self.aggression_analyzer.analyze(text_stripped)
             
-            # 4. Cyberbullying assessment (Multi-dimensional operational criteria)
+            # If Roman Urdu classifier detects high hostility/abuse and lexicon aggression is 0,
+            # elevate aggression to reflect empirical Roman Urdu abuse findings
+            if roman_urdu_result.get("is_abusive") and aggression_result.get("score", 0.0) == 0.0:
+                agg_prob = roman_urdu_result.get("abuse_probability", 0.0)
+                aggression_result["score"] = float(round(max(3.0, agg_prob * 6.0), 1))
+                aggression_result["engineering_normalized_score"] = round(aggression_result["score"] / 10.0, 4)
+                aggression_result["level"] = "mild" if aggression_result["score"] <= 4.0 else "moderate"
+                aggression_result["is_aggressive"] = True
+                if roman_urdu_result.get("detected_terms"):
+                    for term in roman_urdu_result["detected_terms"]:
+                        if term not in aggression_result["matched_indicators"]:
+                            aggression_result["matched_indicators"].append(term)
+                    if "hostile" not in aggression_result["categories"]:
+                        aggression_result["categories"].append("hostile")
+            
+            # 5. Cyberbullying assessment (Multi-dimensional operational criteria with Roman Urdu integration)
             cyberbullying_result = self.cyberbullying_analyzer.analyze(
                 text=text_stripped,
                 sentiment=sentiment_result,
                 toxicity=toxicity_result,
                 aggression=aggression_result,
-                context=context
+                context=context,
+                roman_urdu=roman_urdu_result
             )
             
             # Calculate processing time
@@ -203,7 +231,7 @@ class UnifiedAnalyzer:
             text_metadata = {
                 "character_count": len(text_stripped),
                 "word_count": len(text_stripped.split()),
-                "language": "unknown"
+                "language": "roman_urdu" if (roman_urdu_result.get("is_abusive") or len(roman_urdu_result.get("detected_terms", [])) > 0) else "unknown"
             }
             
             # Build analysis metadata
@@ -214,7 +242,8 @@ class UnifiedAnalyzer:
                     "sentiment": self.sentiment_analyzer.model_name,
                     "toxicity": f"detoxify-{self.toxicity_analyzer.model_name}",
                     "aggression": "aggression-lexicon-xu-2020",
-                    "cyberbullying": "research-operational-definition"
+                    "cyberbullying": "research-operational-definition",
+                    "roman_urdu": "calibrated-subword-tfidf-5004-dataset"
                 },
                 "device": self.sentiment_analyzer.device,
                 "timestamp": time.time()
@@ -222,12 +251,14 @@ class UnifiedAnalyzer:
             
             # Combine results cleanly preserving backward compatibility
             result = {
+                "success": True,
                 "request_id": request_id,
                 "text_metadata": text_metadata,
                 "sentiment": sentiment_result,
                 "toxicity": toxicity_result,
                 "aggression": aggression_result,
                 "cyberbullying": cyberbullying_result,
+                "roman_urdu": roman_urdu_result,
                 "metadata": analysis_metadata
             }
             

@@ -22,7 +22,7 @@ class NLPProvider extends CodingProvider {
     });
 
     this.url = options.url || process.env.NLP_SERVICE_URL || 'http://127.0.0.1:8001';
-    this.timeout = options.timeout || parseInt(process.env.NLP_SERVICE_TIMEOUT_MS, 10) || 30000;
+    this.timeout = options.timeout || parseInt(process.env.NLP_SERVICE_TIMEOUT_MS, 10) || 120000;
     this.fallbackEnabled = options.fallbackEnabled !== undefined 
       ? options.fallbackEnabled 
       : (process.env.NLP_FALLBACK_ENABLED !== 'false');
@@ -174,7 +174,7 @@ class NLPProvider extends CodingProvider {
    * Maps FastAPI JSON response to the standard CodingAIService format
    */
   _mapNLPResponse(payload, clientDurationMs) {
-    const { sentiment, toxicity, aggression, cyberbullying, metadata, text_metadata, request_id } = payload;
+    const { sentiment, toxicity, aggression, cyberbullying, roman_urdu, metadata, text_metadata, request_id } = payload;
 
     // 1. Sentiment Mapping
     const sentimentScore = typeof sentiment.score === 'number' ? sentiment.score : 0;
@@ -253,6 +253,7 @@ class NLPProvider extends CodingProvider {
       requestId: request_id || null,
       detectedLanguage: text_metadata?.language || 'unknown',
       languageConfidence: text_metadata?.language_confidence || 0.5,
+      roman_urdu: payload.roman_urdu || null,
       analyzedAt: new Date().toISOString()
     };
 

@@ -1,44 +1,56 @@
 {
-  "framework": "Aggression Lexicon Model (Xu et al., 2020) - Research Operational Definition",
-  "version": "1.0.0",
-  "description": "Baseline operational aggression and hostile language indicators derived from research coding methodology. The complete empirical research dataset lexicon can be augmented here.",
+  "framework": "Aggression Lexicon Model (Xu et al., 2020; Roman Urdu Cyber Abuse Extension) - Research Operational Definition",
+  "version": "2.0.0",
+  "description": "Operational aggression and hostile language indicators derived from research coding methodology, augmented with empirical Roman Urdu cyber abuse indicators.",
   "categories": {
     "hostile": {
-      "description": "General hostile or demeaning words",
+      "description": "General hostile, abrasive, or demeaning words in English and Roman Urdu",
       "terms": [
         "stupid", "idiot", "fool", "moron", "dumb", "jerk", "asshole",
-        "bastard", "bitch", "loser", "pathetic", "clown", "garbage", "trash"
+        "bastard", "bitch", "loser", "pathetic", "clown", "garbage", "trash",
+        "bakwas", "bakwaas", "faltu", "faaltu", "pagal", "paagal", "badtameez",
+        "jhoot", "jhoota", "chirkut", "kameena", "jahil", "lanat", "zaleel",
+        "ghatiya", "kutte", "kutta", "harami"
       ]
     },
     "insult": {
       "description": "Derogatory personal insults and slurs",
       "terms": [
         "ugly", "disgusting", "worthless", "useless", "retard", "scum",
-        "pig", "freak", "nasty", "creep"
+        "pig", "freak", "nasty", "creep",
+        "ganda", "manhoos", "besharam", "kamina", "ullu", "gadha", "nalayak", "dallal"
       ]
     },
     "threat": {
       "description": "Threatening, violent, or intimidating language",
       "terms": [
         "kill", "destroy", "hurt", "attack", "die", "murder", "beat",
-        "punch", "shoot", "choke", "strangle", "slit", "burn", "torture"
+        "punch", "shoot", "choke", "strangle", "slit", "burn", "torture",
+        "maro", "maroonga", "marunga", "peetoonga", "jaan se mar", "thappad",
+        "hath tor", "chup kar", "tujhe dekh loonga"
       ]
     },
     "demeaning": {
-      "description": "Demeaning or humiliating expressions",
+      "description": "Demeaning, dismissive, or humiliating expressions",
       "terms": [
         "shame", "embarrass", "humiliate", "laughable", "disgrace",
-        "unwanted", "nobody likes you", "disappear"
+        "unwanted", "nobody likes you", "disappear",
+        "sharam nahi aati", "sharam kar", "kuch nahi ata", "auqat", "time waste",
+        "dimagh kharab", "dimag kharab", "waqt zaya", "kisi kaam ka nahi"
       ]
     }
   },
   "targeting_pronouns": [
-    "you", "your", "you're", "youre", "yourself", "u", "ur", "he", "she", "they"
+    "you", "your", "you're", "youre", "yourself", "u", "ur", "he", "she", "they",
+    "tu", "tum", "tera", "teri", "tere", "tujhe", "tujhko", "tumhara", "tumhari",
+    "tumhare", "apne aap", "apne aap ko", "tume", "apko", "aap"
   ],
   "critique_markers": [
     "i think", "i believe", "in my opinion", "i disagree", "the idea",
     "the video", "the content", "the presentation", "the argument",
-    "the topic", "the speaker", "this video", "this clip", "this argument"
+    "the topic", "the speaker", "this video", "this clip", "this argument",
+    "meri raye", "mera khayal", "mujhe lagta", "yeh video", "ye video",
+    "yeh clip", "ye clip", "video theek nahi"
   ],
-  "notes": "Scores and indicators produced from this baseline lexicon reflect the operational coding framework. Empirical weights from human-coded datasets should be supplied for formal validation."
+  "notes": "Augmented with empirical Roman Urdu cyber abuse features trained on 5,004 balanced research samples."
 }

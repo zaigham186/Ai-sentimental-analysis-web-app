@@ -8,15 +8,15 @@ async function updateLimits() {
 
     const db = mongoose.connection.db;
 
-    // Update study settings to 90 participants
-    console.log('Updating participant limits to 90...');
+    // Update study settings to 100 participants
+    console.log('Updating participant limits to 100...');
     const result = await db.collection('studysettings').updateOne(
       {},
       {
         $set: {
-          targetParticipants: 90,
-          anonymousTarget: 45,
-          identifiableTarget: 45,
+          targetParticipants: 100,
+          anonymousTarget: 50,
+          identifiableTarget: 50,
           acceptingParticipants: true,
           recruitmentStatus: 'open',
           currentParticipants: 0,
@@ -28,12 +28,12 @@ async function updateLimits() {
       { upsert: true }
     );
 
-    console.log('✓ Limits updated to 90 (45 anonymous + 45 identifiable)');
+    console.log('✓ Limits updated to 100 (50 anonymous + 50 identifiable)');
     console.log('✓ Accepting participants: enabled');
     console.log('✓ Recruitment status: open');
 
     await mongoose.disconnect();
-    console.log('\n✓ Done! You can now register up to 90 participants.');
+    console.log('\n✓ Done! You can now register up to 100 participants.');
   } catch (error) {
     console.error('Error:', error.message);
   }

@@ -65,7 +65,7 @@ export function Footer() {
         <div className="border-t border-gray-800 mt-8 pt-8 text-sm text-gray-500">
           <div className="flex flex-col sm:flex-row justify-between items-center">
             <p>
-              © {currentYear} SBBWU Research Team. All rights reserved.
+              © {currentYear} Online Behavior Experiment. All rights reserved.
             </p>
             <p className="mt-2 sm:mt-0">
               Research Platform v1.0

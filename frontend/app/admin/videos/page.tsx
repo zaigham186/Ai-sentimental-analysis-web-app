@@ -301,9 +301,6 @@ export default function AdminVideosPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Version
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                        Actions
-                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -329,42 +326,6 @@ export default function AdminVideosPage() {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
                           v{video.version}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => router.push(`/admin/videos/${video.id}`)}
-                          >
-                            View
-                          </Button>
-                          
-                          {video.validationStatus === 'candidate' && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleApprove(video.id)}
-                              >
-                                ✓ Approve
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleReject(video.id)}
-                              >
-                                ✗ Reject
-                              </Button>
-                            </>
-                          )}
-                          
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleToggleActive(video)}
-                          >
-                            {video.active ? 'Deactivate' : 'Activate'}
-                          </Button>
                         </td>
                       </tr>
                     ))}

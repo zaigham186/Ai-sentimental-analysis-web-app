@@ -181,24 +181,28 @@ class AggressionAnalyzer:
                     elif cat == "demeaning":
                         demeaning_count += 1
 
-        # Check for personal targeting (e.g. "you are idiot", "you're stupid", "he is disgusting")
+        # Check for personal targeting (e.g. "you are idiot", "you're stupid", "tu pagal hai", "tera content bakwas")
         personal_targeting = False
+        targeting_terms = (
+            self.categories.get("hostile", []) +
+            self.categories.get("insult", []) +
+            self.categories.get("demeaning", [])
+        )
         targeting_regex = re.compile(
-            r"\b(you\s+are|you're|youre|u\s+are|u're|he\s+is|he's|she\s+is|she's|they\s+are|they're)\b\s+(?:\w+\s+){0,2}(?:"
-            + "|".join(re.escape(t) for t in (
-                self.categories.get("hostile", []) +
-                self.categories.get("insult", []) +
-                self.categories.get("demeaning", [])
-            ))
+            r"\b(you\s+are|you're|youre|u\s+are|u're|he\s+is|he's|she\s+is|she's|they\s+are|they're|tu\s+hai|tu\s+hy|tu\s+hey|tum\s+ho|tum\s+hy|tera|teri|tere|tujhe|tumhara|tumhari|apne\s+aap)\b\s+(?:\w+\s+){0,3}(?:"
+            + "|".join(re.escape(t) for t in targeting_terms)
             + r")\b",
             re.IGNORECASE
         )
         if targeting_regex.search(text):
             personal_targeting = True
 
-        # Direct second-person address combined with insulting or threatening terms
-        direct_second_person = bool(re.search(r"\b(you|your|u|ur)\b", lower_text))
-        if direct_second_person and (threat_count > 0 or insult_count > 0 or personal_targeting):
+        # Direct second-person address in English and Roman Urdu combined with abusive terms
+        direct_second_person = bool(re.search(
+            r"\b(you|your|u|ur|tu|tum|tera|teri|tere|tujhe|tujhko|tumhara|tumhari|tumhare|apne\s+aap)\b",
+            lower_text
+        ))
+        if direct_second_person and (threat_count > 0 or insult_count > 0 or hostile_count > 0 or personal_targeting):
             personal_targeting = True
 
         # Check for critique of idea / content
