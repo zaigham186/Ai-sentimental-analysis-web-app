@@ -22,9 +22,9 @@ class NLPProvider extends CodingProvider {
     });
 
     this.url = options.url || process.env.NLP_SERVICE_URL || 'http://127.0.0.1:8001';
-    this.timeout = options.timeout || parseInt(process.env.NLP_SERVICE_TIMEOUT_MS, 10) || 120000;
-    this.fallbackEnabled = options.fallbackEnabled !== undefined 
-      ? options.fallbackEnabled 
+    this.timeout = options.timeout || parseInt(process.env.NLP_SERVICE_TIMEOUT_MS, 10) || 30000;
+    this.fallbackEnabled = options.fallbackEnabled !== undefined
+      ? options.fallbackEnabled
       : (process.env.NLP_FALLBACK_ENABLED !== 'false');
     this.fallbackProvider = options.fallbackProvider || new RuleBasedProvider();
   }
@@ -174,7 +174,7 @@ class NLPProvider extends CodingProvider {
    * Maps FastAPI JSON response to the standard CodingAIService format
    */
   _mapNLPResponse(payload, clientDurationMs) {
-    const { sentiment, toxicity, aggression, cyberbullying, roman_urdu, metadata, text_metadata, request_id } = payload;
+    const { sentiment, toxicity, aggression, cyberbullying, metadata, text_metadata, request_id } = payload;
 
     // 1. Sentiment Mapping
     const sentimentScore = typeof sentiment.score === 'number' ? sentiment.score : 0;
@@ -200,8 +200,8 @@ class NLPProvider extends CodingProvider {
       label: aggressionLevel,
       level: Math.round(aggressionScore),
       score: aggressionScore,
-      normalizedScore: aggression.engineering_normalized_score !== undefined 
-        ? aggression.engineering_normalized_score 
+      normalizedScore: aggression.engineering_normalized_score !== undefined
+        ? aggression.engineering_normalized_score
         : Math.round((aggressionScore / 10) * 100) / 100,
       confidence: aggression.is_aggressive ? 0.8 : 0.75,
       evidence: aggressionEvidenceStr,

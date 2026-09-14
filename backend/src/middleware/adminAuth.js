@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const { Admin } = require('../models');
 
 /**
@@ -19,6 +20,14 @@ const authenticateAdmin = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: 'Admin authentication required'
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(adminId)) {
+      res.clearCookie('adminSession');
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid admin session'
       });
     }
 
@@ -59,7 +68,7 @@ const authenticateAdmin = async (req, res, next) => {
       role: admin.role,
       permissions: admin.permissions
     };
-    
+
     next();
   } catch (error) {
     console.error('Admin authentication error:', error);
@@ -177,7 +186,7 @@ const requirePermission = (permission) => {
 const checkExistingAdminSession = (req, res, next) => {
   const adminId = req.cookies.adminSession;
 
-  if (adminId) {
+  if (adminId && mongoose.Types.ObjectId.isValid(adminId)) {
     return res.status(400).json({
       success: false,
       message: 'Already logged in as admin'

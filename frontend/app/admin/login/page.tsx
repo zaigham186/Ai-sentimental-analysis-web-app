@@ -1,46 +1,47 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, FormEvent, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { api } from '@/lib/api';
 
 /**
- * Admin Login Page
- * Phase 8: Admin Authentication
- * Separate from participant authentication
+ * Admin Login Form Component
+ * 
+ * CRITICAL PRIVACY & SECURITY REQUIREMENT:
+ * - NO AUTOMATIC LOADING of the Admin Dashboard.
+ * - Every visitor/participant navigating to the admin section MUST see this login form.
+ * - The dashboard will NEVER load without entering valid administrator credentials.
  */
-
-export default function AdminLoginPage() {
+function AdminLoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [formData, setFormData] = useState({
     username: '',
     password: ''
   });
   const [loading, setLoading] = useState(false);
-  const [checking, setChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Check if already logged in
-  useEffect(() => {
-    checkExistingSession();
-  }, []);
-
-  const checkExistingSession = async () => {
-    try {
-      setChecking(true);
-      const response = await api.admin.me();
-      if (response.success && response.data) {
-        // Already logged in, redirect to dashboard
-        router.push('/admin/dashboard');
-      }
-    } catch (err) {
-      // Not logged in, show login form
-      setChecking(false);
+  // Validate redirect target to prevent open redirect vulnerabilities
+  const getTargetUrl = () => {
+    const redirect = searchParams.get('redirect');
+    if (
+      redirect &&
+      redirect.startsWith('/admin') &&
+      !redirect.startsWith('//') &&
+      redirect !== '/admin/login' &&
+      redirect !== '/admin'
+    ) {
+      return redirect;
     }
+    return '/admin/dashboard';
   };
+
+  const isExpired = searchParams.get('expired') === 'true';
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -48,7 +49,6 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      // Validate input
       if (!formData.username.trim()) {
         setError('Username is required');
         setLoading(false);
@@ -61,15 +61,15 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // Submit login
       const response = await api.admin.login({
         username: formData.username.trim(),
         password: formData.password
       });
 
       if (response.success) {
-        // Redirect to admin dashboard
-        router.push('/admin/dashboard');
+        // Successful authentication -> redirect to intended admin page or dashboard
+        const destination = getTargetUrl();
+        router.push(destination);
       }
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.');
@@ -84,33 +84,21 @@ export default function AdminLoginPage() {
     });
   };
 
-  // Show loading while checking session
-  if (checking) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-        <div className="text-center">
-          <LoadingSpinner size="lg" />
-          <p className="mt-4 text-gray-600">Checking authentication...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
           {/* Logo/Icon */}
-          <div className="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
-            <span className="text-3xl font-bold text-white">C</span>
+          <div className="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center mb-4 shadow-md">
+            <span className="text-3xl font-bold text-white">O</span>
           </div>
           
           <h1 className="text-3xl font-bold text-gray-900">
-            Cyberbullying Research
+            Online Behavior Experiment
           </h1>
           <p className="mt-2 text-sm text-gray-600 font-medium">
-            SBBWU
+            SBBWU &bull; Department of Psychology
           </p>
           <p className="text-xs text-gray-500 mt-1">
             Shaheed Benazir Bhutto Women University, Peshawar
@@ -126,9 +114,16 @@ export default function AdminLoginPage() {
               Admin Login
             </h2>
             <p className="mt-2 text-sm text-gray-600 text-center">
-              Research administration portal
+              Research administration &amp; data management portal
             </p>
           </div>
+
+          {/* Session Expired Alert */}
+          {isExpired && !error && (
+            <Alert variant="warning" className="mb-6">
+              Your administrative session has expired. Please sign in again to continue.
+            </Alert>
+          )}
 
           {error && (
             <Alert variant="error" className="mb-6">
@@ -234,21 +229,33 @@ export default function AdminLoginPage() {
           {/* Footer Info */}
           <div className="mt-6 space-y-3">
             <p className="text-xs text-gray-500 text-center">
-              Contact the research team if you need access or have forgotten your credentials.
+              Research Administration &bull; Confidential Participant Data
             </p>
           </div>
         </div>
 
-        {/* Additional Links */}
+        {/* Participant Portal Link */}
         <div className="mt-6 text-center space-y-2">
           <a 
             href="/" 
             className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
           >
-            ← Back to Participant Portal
+            &larr; Back to Participant Portal
           </a>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+        <LoadingSpinner size="lg" />
+      </div>
+    }>
+      <AdminLoginForm />
+    </Suspense>
   );
 }

@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const { Participant } = require('../models');
 
 /**
@@ -19,6 +20,14 @@ const authenticateParticipant = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: 'Authentication required'
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(participantId)) {
+      res.clearCookie('participantSession');
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid session'
       });
     }
 
@@ -45,7 +54,7 @@ const authenticateParticipant = async (req, res, next) => {
     // Attach participant to request
     // DO NOT expose internal MongoDB _id in responses
     req.participant = participant;
-    
+
     next();
   } catch (error) {
     console.error('Authentication error:', error);

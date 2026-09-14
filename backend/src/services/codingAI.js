@@ -74,14 +74,14 @@ class RuleBasedProvider extends CodingProvider {
     // Simple heuristic language detection
     const urduPattern = /[\u0600-\u06FF]/;
     const englishPattern = /[a-zA-Z]/;
-    
+
     const hasUrdu = urduPattern.test(text);
     const hasEnglish = englishPattern.test(text);
-    
+
     if (hasUrdu && hasEnglish) return { language: 'mixed', confidence: 0.7 };
     if (hasUrdu) return { language: 'urdu', confidence: 0.8 };
     if (hasEnglish) return { language: 'english', confidence: 0.9 };
-    
+
     return { language: 'unknown', confidence: 0.3 };
   }
 
@@ -104,7 +104,7 @@ class RuleBasedProvider extends CodingProvider {
         'good', 'great', 'excellent', 'nice', 'like', 'love', 'enjoyed',
         'interesting', 'helpful', 'appreciate', 'agree', 'support'
       ];
-      
+
       const negativeIndicators = [
         'bad', 'terrible', 'horrible', 'hate', 'dislike', 'disagree',
         'wrong', 'awful', 'disgusting', 'poor', 'worst'
@@ -174,22 +174,22 @@ class RuleBasedProvider extends CodingProvider {
       }
 
       const lowerText = text.toLowerCase();
-      
+
       // IMPORTANT: Aggression ≠ Negative Sentiment
       // Look for hostile, threatening, or attacking language
       const hostileWords = ['stupid', 'idiot', 'fool', 'moron', 'dumb'];
       const insultingWords = ['ugly', 'disgusting', 'worthless', 'useless'];
       const threateningWords = ['kill', 'destroy', 'hurt', 'attack', 'die'];
-      
+
       // Check for personal targeting (key distinction)
       const personalTargeting = /\b(you are|you're|he is|she is|they are)\s+(stupid|idiot|fool|dumb|worthless)/i.test(text);
-      
+
       const hostileCount = hostileWords.filter(w => lowerText.includes(w)).length;
       const insultingCount = insultingWords.filter(w => lowerText.includes(w)).length;
       const threateningCount = threateningWords.filter(w => lowerText.includes(w)).length;
-      
+
       const totalIndicators = hostileCount + insultingCount + threateningCount;
-      
+
       let label, level, confidence, evidence;
 
       if (threateningCount > 0 || personalTargeting) {
@@ -258,29 +258,29 @@ class RuleBasedProvider extends CodingProvider {
 
       // CRITICAL: Cyberbullying requires specific criteria
       // NOT just negative sentiment or harsh words
-      
+
       const lowerText = text.toLowerCase();
       const criteriaMatched = [];
-      
+
       // Criterion 1: Personal targeting (attacking a person, not an idea)
       const personalTargeting = /\b(you are|you're|he is|she is|they are)\s+\w+/i.test(text) &&
         /\b(stupid|idiot|fool|ugly|worthless|loser|pathetic)\b/i.test(text);
       if (personalTargeting) {
         criteriaMatched.push('personal_targeting');
       }
-      
+
       // Criterion 2: Insulting/abusive behavior
       const directInsult = /\b(you\s+(stupid|idiot|fool|moron|dumb|ugly|disgusting))\b/i.test(text);
       if (directInsult) {
         criteriaMatched.push('direct_insult');
       }
-      
+
       // Criterion 3: Humiliation/degradation
       const humiliating = /\b(loser|pathetic|worthless|embarrass|shame|humiliat)\b/i.test(text);
       if (humiliating && personalTargeting) {
         criteriaMatched.push('humiliation');
       }
-      
+
       // Criterion 4: Threatening behavior
       const threatening = /\b(kill|hurt|attack|destroy|die|threat)\b/i.test(text);
       if (threatening && personalTargeting) {
@@ -297,7 +297,7 @@ class RuleBasedProvider extends CodingProvider {
       if (criteriaMatched.length >= 2) {
         present = true;
         confidence = 0.7;
-        
+
         if (criteriaMatched.includes('threatening')) {
           type = 'harassment';
           severity = 8;
@@ -308,7 +308,7 @@ class RuleBasedProvider extends CodingProvider {
           type = 'flaming';
           severity = 5;
         }
-        
+
         evidence = `Matches ${criteriaMatched.length} cyberbullying criteria: ${criteriaMatched.join(', ')}`;
       } else if (criteriaMatched.length === 1) {
         present = false; // Needs more evidence
@@ -377,8 +377,8 @@ class CodingAIService {
       }
 
       // Detect language
-      const languageInfo = this.provider.detectLanguage ? 
-        this.provider.detectLanguage(responseText) : 
+      const languageInfo = this.provider.detectLanguage ?
+        this.provider.detectLanguage(responseText) :
         { language: 'unknown', confidence: 0.5 };
 
       // Perform analysis
@@ -397,7 +397,7 @@ class CodingAIService {
       };
 
       // Determine overall review need
-      analysis.needsHumanReview = 
+      analysis.needsHumanReview =
         Boolean(analysis.sentiment?.needsReview) ||
         Boolean(analysis.aggression?.needsReview) ||
         Boolean(analysis.cyberbullying?.needsReview);
@@ -454,9 +454,9 @@ function createCodingProvider(options = {}) {
   if (nlpEnabled) {
     return new NLPProvider({
       url: options.url || config.nlp?.serviceUrl || process.env.NLP_SERVICE_URL || 'http://127.0.0.1:8001',
-      timeout: options.timeout || config.nlp?.timeoutMs || parseInt(process.env.NLP_SERVICE_TIMEOUT_MS, 10) || 120000,
-      fallbackEnabled: options.fallbackEnabled !== undefined 
-        ? options.fallbackEnabled 
+      timeout: options.timeout || config.nlp?.timeoutMs || parseInt(process.env.NLP_SERVICE_TIMEOUT_MS, 10) || 30000,
+      fallbackEnabled: options.fallbackEnabled !== undefined
+        ? options.fallbackEnabled
         : (config.nlp?.fallbackEnabled ?? (process.env.NLP_FALLBACK_ENABLED !== 'false')),
       fallbackProvider: options.fallbackProvider || new RuleBasedProvider(options)
     });

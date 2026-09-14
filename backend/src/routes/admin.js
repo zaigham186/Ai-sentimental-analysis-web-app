@@ -7,10 +7,10 @@ const exportRoutes = require('./export');
 const researchAnalyticsRoutes = require('./researchAnalyticsRoutes');
 const participantManagementRoutes = require('./participants.management');
 const responseManagementRoutes = require('./responses.management');
-const { 
-  authenticateAdmin, 
+const {
+  authenticateAdmin,
   requireResearcher,
-  checkExistingAdminSession 
+  checkExistingAdminSession
 } = require('../middleware/adminAuth');
 const { authLimiter } = require('../middleware/security');
 

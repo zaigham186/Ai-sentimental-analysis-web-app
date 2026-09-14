@@ -19,7 +19,7 @@ export default function Home() {
           <div className="container-custom">
             <div className="text-center max-w-4xl mx-auto">
               <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
-                Cyberbullying Research Study
+                Online Behavior Experiment
               </h1>
               <p className="text-xl text-gray-700 mb-4">
                 An Experimental Investigation of Anonymity in Cyberbullying Perpetration

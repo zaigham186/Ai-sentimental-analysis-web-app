@@ -8,18 +8,43 @@ const { VideoResponse, Participant, Video, Coding } = require('../models');
 /**
  * Get all responses with full details
  * GET /api/admin/responses
+ * Supports participant-based pagination for ranges like 1-30, 31-60, etc.
  */
 const getAllResponses = async (req, res) => {
   try {
-    const { condition, video, coded, search, page = 1, limit = 50 } = req.query;
+    const { 
+      condition, 
+      video, 
+      coded, 
+      search, 
+      page = 1, 
+      limit = 50,
+      participantRangeStart,
+      participantRangeEnd,
+      participantPageSize = 30
+    } = req.query;
 
     // Build query
     let query = {};
-    
-    // Filter by condition
-    if (condition) {
-      const participants = await Participant.find({ condition }).distinct('_id');
-      query.participant = { $in: participants };
+    let participantIds = [];
+
+    // Participant-based pagination: Get participant IDs in the specified range
+    if (participantRangeStart && participantRangeEnd) {
+      const participantQuery = condition ? { condition } : {};
+      const participants = await Participant.find(participantQuery)
+        .sort({ createdAt: 1 }) // Consistent ordering
+        .skip(parseInt(participantRangeStart) - 1)
+        .limit(parseInt(participantRangeEnd) - parseInt(participantRangeStart) + 1)
+        .select('_id');
+      
+      participantIds = participants.map(p => p._id);
+      query.participant = { $in: participantIds };
+    } else {
+      // Legacy: Filter by condition
+      if (condition) {
+        const participants = await Participant.find({ condition }).distinct('_id');
+        query.participant = { $in: participants };
+      }
     }
     
     // Filter by video
@@ -30,7 +55,7 @@ const getAllResponses = async (req, res) => {
     const responses = await VideoResponse.find(query)
       .populate('participant', 'username name condition status')
       .populate('video', 'title order topic')
-      .sort({ submittedAt: -1 })
+      .sort({ 'participant.createdAt': 1, submittedAt: 1 }) // Group by participant
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
 
@@ -67,6 +92,9 @@ const getAllResponses = async (req, res) => {
       );
     }
 
+    // Get total participant count for pagination
+    const totalParticipantCount = await Participant.countDocuments(condition ? { condition } : {});
+
     res.json({
       success: true,
       data: {
@@ -75,7 +103,10 @@ const getAllResponses = async (req, res) => {
           page: parseInt(page),
           limit: parseInt(limit),
           total: filteredResponses.length,
-          pages: Math.ceil(filteredResponses.length / limit)
+          pages: Math.ceil(filteredResponses.length / limit),
+          totalParticipants: totalParticipantCount,
+          participantRangeStart: participantRangeStart ? parseInt(participantRangeStart) : null,
+          participantRangeEnd: participantRangeEnd ? parseInt(participantRangeEnd) : null
         }
       }
     });

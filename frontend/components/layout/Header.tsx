@@ -15,11 +15,11 @@ export function Header() {
             className="flex items-center space-x-3 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
           >
             <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">C</span>
+              <span className="text-white font-bold text-xl">O</span>
             </div>
             <div className="hidden sm:block">
               <div className="text-sm font-semibold text-gray-900">
-                Cyberbullying Research
+                Online Behavior Experiment
               </div>
               <div className="text-xs text-gray-600">SBBWU</div>
             </div>

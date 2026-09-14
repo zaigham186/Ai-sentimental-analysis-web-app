@@ -19,21 +19,47 @@ const codingAI = new CodingAIService(createCodingProvider());
 /**
  * Get all responses with coding status
  * GET /api/admin/coding/responses
+ * Supports participant-based pagination for ranges like 1-30, 31-60, etc.
  */
 const getAllResponses = async (req, res) => {
   try {
-    const { coded, condition, video, search, page = 1, limit = 50 } = req.query;
+    const {
+      coded,
+      condition,
+      video,
+      search,
+      page = 1,
+      limit = 50,
+      participantRangeStart,
+      participantRangeEnd,
+      participantPageSize = 30
+    } = req.query;
 
     // Build query
     const query = {};
-    
-    // Filter by condition
-    if (condition) {
+    let participantIds = [];
+
+    // Participant-based pagination: Get participant IDs in the specified range
+    if (participantRangeStart && participantRangeEnd) {
       const { Participant } = require('../models');
-      const participants = await Participant.find({ condition }).distinct('_id');
-      query.participant = { $in: participants };
+      const participantQuery = condition ? { condition } : {};
+      const participants = await Participant.find(participantQuery)
+        .sort({ createdAt: 1 }) // Consistent ordering
+        .skip(parseInt(participantRangeStart) - 1)
+        .limit(parseInt(participantRangeEnd) - parseInt(participantRangeStart) + 1)
+        .select('_id');
+
+      participantIds = participants.map(p => p._id);
+      query.participant = { $in: participantIds };
+    } else {
+      // Legacy: Filter by condition
+      if (condition) {
+        const { Participant } = require('../models');
+        const participants = await Participant.find({ condition }).distinct('_id');
+        query.participant = { $in: participants };
+      }
     }
-    
+
     // Filter by video
     if (video) {
       query.video = video;
@@ -52,13 +78,13 @@ const getAllResponses = async (req, res) => {
     const responsesWithCoding = await Promise.all(
       responses.map(async (response) => {
         const coding = await Coding.findPrimaryCoding(response._id);
-        
+
         // Check if it's actually coded (has final coding data) or just AI suggestion pending
         const isActuallyCoded = coding && (
-          coding.reviewStatus === 'reviewed' || 
+          coding.reviewStatus === 'reviewed' ||
           (coding.reviewStatus === null && (coding.sentiment || coding.aggression?.category || coding.cyberbullying?.present !== undefined))
         );
-        
+
         const responseObj = response.toObject();
         return {
           ...responseObj,
@@ -82,12 +108,16 @@ const getAllResponses = async (req, res) => {
 
     // Search in response text
     if (search) {
-      filteredResponses = filteredResponses.filter(r => 
+      filteredResponses = filteredResponses.filter(r =>
         r.responseText.toLowerCase().includes(search.toLowerCase())
       );
     }
 
     const total = filteredResponses.length;
+
+    // Get total participant count for pagination
+    const { Participant } = require('../models');
+    const totalParticipantCount = await Participant.countDocuments(condition ? { condition } : {});
 
     res.json({
       success: true,
@@ -97,7 +127,10 @@ const getAllResponses = async (req, res) => {
           page: parseInt(page),
           limit: parseInt(limit),
           total,
-          pages: Math.ceil(total / limit)
+          pages: Math.ceil(total / limit),
+          totalParticipants: totalParticipantCount,
+          participantRangeStart: participantRangeStart ? parseInt(participantRangeStart) : null,
+          participantRangeEnd: participantRangeEnd ? parseInt(participantRangeEnd) : null
         }
       }
     });
@@ -140,7 +173,7 @@ const getResponseById = async (req, res) => {
 
     // FIXED: Check if actually coded (reviewed) vs just AI suggestion
     const isActuallyCoded = coding && (
-      coding.reviewStatus === 'reviewed' || 
+      coding.reviewStatus === 'reviewed' ||
       (coding.reviewStatus === null && (coding.sentiment || coding.aggression?.category || coding.cyberbullying?.present !== undefined))
     );
 
@@ -236,7 +269,7 @@ const createCoding = async (req, res) => {
     });
   } catch (error) {
     console.error('Create coding error:', error);
-    
+
     if (error.name === 'ValidationError') {
       return res.status(400).json({
         success: false,
@@ -306,7 +339,7 @@ const updateCoding = async (req, res) => {
     });
   } catch (error) {
     console.error('Update coding error:', error);
-    
+
     if (error.name === 'ValidationError') {
       return res.status(400).json({
         success: false,
@@ -370,10 +403,10 @@ const deleteCoding = async (req, res) => {
 const getStatistics = async (req, res) => {
   try {
     const totalResponses = await VideoResponse.countDocuments();
-    
+
     // FIXED: Only count codings that are REVIEWED (have final human-approved coding)
     // NOT just pending AI suggestions
-    const codedResponses = await Coding.countDocuments({ 
+    const codedResponses = await Coding.countDocuments({
       coderRole: 'primary',
       reviewStatus: { $in: ['reviewed', null] }, // null for old codings without reviewStatus
       $or: [
@@ -382,36 +415,40 @@ const getStatistics = async (req, res) => {
         { 'cyberbullying.present': { $exists: true, $ne: null } }
       ]
     });
-    
+
     const uncodedResponses = totalResponses - codedResponses;
 
     // FIXED: Get distribution only from REVIEWED codings
     const aggressionDistribution = await Coding.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           coderRole: 'primary',
           reviewStatus: { $in: ['reviewed', null] },
           'aggression.category': { $exists: true, $ne: null }
-        } 
+        }
       },
-      { $group: {
-        _id: '$aggression.category',
-        count: { $sum: 1 }
-      }}
+      {
+        $group: {
+          _id: '$aggression.category',
+          count: { $sum: 1 }
+        }
+      }
     ]);
 
     const cyberbullyingDistribution = await Coding.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           coderRole: 'primary',
           reviewStatus: { $in: ['reviewed', null] },
           'cyberbullying.present': { $exists: true, $ne: null }
-        } 
+        }
       },
-      { $group: {
-        _id: '$cyberbullying.present',
-        count: { $sum: 1 }
-      }}
+      {
+        $group: {
+          _id: '$cyberbullying.present',
+          count: { $sum: 1 }
+        }
+      }
     ]);
 
     res.json({
@@ -800,7 +837,7 @@ const reviewAISuggestion = async (req, res) => {
     });
   } catch (error) {
     console.error('Review error:', error);
-    
+
     if (error.name === 'ValidationError') {
       return res.status(400).json({
         success: false,
@@ -859,7 +896,7 @@ const getPendingReview = async (req, res) => {
         metadata: coding.aiCoding.metadata,
         analyzedAt: coding.aiCoding.analyzedAt
       },
-      needsReview: 
+      needsReview:
         coding.aiCoding.sentiment.needsReview ||
         coding.aiCoding.aggression.needsReview ||
         coding.aiCoding.cyberbullying.needsReview
@@ -914,13 +951,13 @@ const bulkAnalyze = async (req, res) => {
     } else {
       // Analyze by filters
       const query = {};
-      
+
       if (condition) {
         const { Participant } = require('../models');
         const participants = await Participant.find({ condition }).distinct('_id');
         query.participant = { $in: participants };
       }
-      
+
       if (video) {
         query.video = video;
       }

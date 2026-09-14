@@ -14,7 +14,7 @@ interface RequestOptions extends RequestInit {
  */
 async function fetchAPI(endpoint: string, options: RequestOptions = {}) {
   const url = `${API_URL}${endpoint}`;
-  
+
   const config: RequestInit = {
     ...options,
     headers: {
@@ -31,7 +31,7 @@ async function fetchAPI(endpoint: string, options: RequestOptions = {}) {
 
   try {
     const response = await fetch(url, config);
-    
+
     // Parse JSON response
     const data = await response.json();
 
@@ -184,17 +184,17 @@ export const api = {
       delete: (id: string) => fetchAPI(`/api/admin/videos/${id}`, { method: 'DELETE' }),
 
       // Approve video
-      approve: (id: string, notes?: string) => 
-        fetchAPI(`/api/admin/videos/${id}/approve`, { 
-          method: 'POST', 
-          body: notes ? { notes } : {} 
+      approve: (id: string, notes?: string) =>
+        fetchAPI(`/api/admin/videos/${id}/approve`, {
+          method: 'POST',
+          body: notes ? { notes } : {}
         }),
 
       // Reject video
       reject: (id: string, notes: string) =>
-        fetchAPI(`/api/admin/videos/${id}/reject`, { 
-          method: 'POST', 
-          body: { notes } 
+        fetchAPI(`/api/admin/videos/${id}/reject`, {
+          method: 'POST',
+          body: { notes }
         }),
 
       // Validate stimulus set
@@ -276,9 +276,9 @@ export const api = {
       validationStatus: () => fetchAPI('/api/admin/coding/validation-status'),
 
       // Phase 10 Enhancement: AI-Assisted Coding
-      
+
       // Trigger AI analysis for a response
-      analyzeWithAI: (id: string) => 
+      analyzeWithAI: (id: string) =>
         fetchAPI(`/api/admin/coding/${id}/analyze`, { method: 'POST' }),
 
       // Human review of AI suggestion

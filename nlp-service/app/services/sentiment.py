@@ -120,7 +120,7 @@ class SentimentAnalyzer:
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
             # Get model predictions
-            with torch.inference_mode():
+            with torch.no_grad():
                 outputs = self.model(**inputs)
                 logits = outputs.logits
                 

@@ -38,21 +38,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Optimize PyTorch CPU performance
-try:
-    import torch
-    if not torch.cuda.is_available():
-        cpu_cores = os.cpu_count() or 4
-        optimal_threads = min(4, cpu_cores)
-        torch.set_num_threads(optimal_threads)
-        try:
-            torch.set_num_interop_threads(2)
-        except Exception:
-            pass
-        logger.info(f"PyTorch CPU configured with {optimal_threads} threads (detected {cpu_cores} cores)")
-except Exception as e:
-    logger.warning(f"PyTorch thread optimization could not be applied: {e}")
-
 # Import schemas and services
 from app.schemas.analysis import (
     AnalysisRequest,
@@ -268,7 +253,6 @@ async def analyze_text(request: AnalysisRequest):
             toxicity=result["toxicity"],
             aggression=result.get("aggression"),
             cyberbullying=result.get("cyberbullying"),
-            roman_urdu=result.get("roman_urdu"),
             metadata=result["metadata"]
         )
         
@@ -370,6 +354,21 @@ async def shutdown_event():
     # Future: Explicitly unload models if needed
     # For now, Python garbage collection handles this
     
+    logger.info("✅ Shutdown complete")
+
+
+# ============================================================================
+# MAIN ENTRY POINT
+# ============================================================================
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "app.main:app",
+        host=HOST,
+        port=PORT,
+        reload=False  # Disable reload in production
+    )
     logger.info("✅ Shutdown complete")
 
 

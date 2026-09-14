@@ -29,13 +29,18 @@ export default function AdminResponsesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   
+  // Participant-based pagination
+  const [participantPageSize] = useState(30); // Participants per range
+  const [participantPage, setParticipantPage] = useState(1);
+  const [totalParticipants, setTotalParticipants] = useState(0);
+  
   // Pagination
   const [totalPages, setTotalPages] = useState(1);
   const pageSize = 50;
 
   useEffect(() => {
     loadData();
-  }, [conditionFilter, codedFilter, searchQuery, currentPage]);
+  }, [conditionFilter, codedFilter, searchQuery, currentPage, participantPage]);
 
   const loadData = async () => {
     try {
@@ -46,10 +51,17 @@ export default function AdminResponsesPage() {
       const adminResponse = await api.admin.me();
       setAdmin(adminResponse.data);
 
+      // Calculate participant range
+      const rangeStart = (participantPage - 1) * participantPageSize + 1;
+      const rangeEnd = participantPage * participantPageSize;
+
       // Build filter params
       const params: any = {
         page: currentPage,
-        limit: pageSize
+        limit: pageSize,
+        participantRangeStart: rangeStart,
+        participantRangeEnd: rangeEnd,
+        participantPageSize: participantPageSize
       };
       if (conditionFilter) params.condition = conditionFilter;
       if (codedFilter) params.coded = codedFilter;
@@ -63,6 +75,7 @@ export default function AdminResponsesPage() {
 
       setResponses(responsesResponse.data.responses);
       setTotalPages(responsesResponse.data.pagination.pages);
+      setTotalParticipants(responsesResponse.data.pagination.totalParticipants || 0);
       setStats(statsResponse.data);
     } catch (err: any) {
       if (err.message === 'Admin authentication required') {
@@ -131,6 +144,52 @@ export default function AdminResponsesPage() {
             <StatCard title="Identifiable" value={stats.byCondition.identifiable} color="indigo" />
           </div>
         )}
+
+        {/* Participant Range Navigation */}
+        <Card className="mb-6">
+          <CardBody>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-sm text-gray-700">
+                <span className="font-medium">Viewing Participants:</span>{' '}
+                <span className="font-bold text-blue-600">
+                  {(participantPage - 1) * participantPageSize + 1}–
+                  {Math.min(participantPage * participantPageSize, totalParticipants)}
+                </span>
+                {' '}of{' '}
+                <span className="font-bold">{totalParticipants}</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setParticipantPage(p => Math.max(1, p - 1));
+                    setCurrentPage(1);
+                  }}
+                  disabled={participantPage === 1}
+                >
+                  ← Previous {participantPageSize}
+                </Button>
+                <div className="text-sm text-gray-600 px-2">
+                  Range {participantPage}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const maxPage = Math.ceil(totalParticipants / participantPageSize);
+                    setParticipantPage(p => Math.min(maxPage, p + 1));
+                    setCurrentPage(1);
+                  }}
+                  disabled={participantPage * participantPageSize >= totalParticipants}
+                >
+                  Next {participantPageSize} →
+                </Button>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
 
         {/* Actions */}
         <div className="flex justify-between items-center mb-6">
