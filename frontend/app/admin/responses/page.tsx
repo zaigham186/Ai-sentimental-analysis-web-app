@@ -315,23 +315,28 @@ export default function AdminResponsesPage() {
                         <tr key={response._id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm text-gray-900">
                             <div>
-                              <div className="font-medium">{response.participant.name}</div>
-                              <button
-                                onClick={() => handleViewParticipant(response.participant._id)}
-                                className="text-blue-600 hover:text-blue-800 text-xs"
-                              >
-                                @{response.participant.username}
-                              </button>
+                              <div className="font-medium">{response.participant?.name || 'N/A'}</div>
+                              {response.participant?._id && (
+                                <button
+                                  onClick={() => handleViewParticipant(response.participant._id)}
+                                  className="text-blue-600 hover:text-blue-800 text-xs"
+                                >
+                                  @{response.participant?.username || 'unknown'}
+                                </button>
+                              )}
+                              {!response.participant?._id && (
+                                <span className="text-gray-400 text-xs">@{response.participant?.username || 'unknown'}</span>
+                              )}
                             </div>
                           </td>
                           <td className="px-4 py-3 text-sm">
-                            <ConditionBadge condition={response.participant.condition} />
+                            <ConditionBadge condition={response.participant?.condition || 'anonymous'} />
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600">
                             <div>
-                              <div className="font-medium">#{response.video.order}</div>
+                              <div className="font-medium">#{response.video?.order || 'N/A'}</div>
                               <div className="text-xs text-gray-500">
-                                {response.video.title}
+                                {response.video?.title || 'Unknown'}
                               </div>
                             </div>
                           </td>

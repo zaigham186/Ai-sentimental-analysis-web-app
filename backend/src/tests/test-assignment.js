@@ -11,8 +11,8 @@ require('dotenv').config();
 const { Participant, StudySettings, AuditLog } = require('../models');
 const assignmentService = require('../services/assignmentService');
 
-// Test database connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/cyberbullying-research-test';
+// Test database connection (isolated to avoid counting existing participants)
+const MONGODB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/cyberbullying-research-test';
 
 /**
  * Test Suite

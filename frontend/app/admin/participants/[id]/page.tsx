@@ -196,9 +196,9 @@ export default function ParticipantDetailPage() {
                         <tr key={response._id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm text-gray-900">
                             <div>
-                              <div className="font-medium">#{response.video.order}</div>
+                              <div className="font-medium">#{response.video?.order || 'N/A'}</div>
                               <div className="text-xs text-gray-500">
-                                {response.video.title}
+                                {response.video?.title || 'Unknown'}
                               </div>
                             </div>
                           </td>

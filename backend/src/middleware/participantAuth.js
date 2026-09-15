@@ -24,7 +24,7 @@ const authenticateParticipant = async (req, res, next) => {
     }
 
     if (!mongoose.Types.ObjectId.isValid(participantId)) {
-      res.clearCookie('participantSession');
+      res.clearCookie('participantSession', { sameSite: 'lax' });
       return res.status(401).json({
         success: false,
         message: 'Invalid session'
@@ -36,7 +36,7 @@ const authenticateParticipant = async (req, res, next) => {
 
     if (!participant) {
       // Invalid session - clear cookie
-      res.clearCookie('participantSession');
+      res.clearCookie('participantSession', { sameSite: 'lax' });
       return res.status(401).json({
         success: false,
         message: 'Invalid session'

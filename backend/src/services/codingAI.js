@@ -50,6 +50,8 @@ class CodingProvider {
       metadata: {
         provider: this.name,
         version: this.version,
+        toxicity_score: 0.0,
+        is_toxic: false,
         analyzedAt: new Date().toISOString()
       }
     };

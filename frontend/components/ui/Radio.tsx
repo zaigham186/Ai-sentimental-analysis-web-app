@@ -29,7 +29,6 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(
                 error && 'border-red-500',
                 className
               )}
-              aria-invalid={error ? 'true' : 'false'}
               aria-describedby={error ? `${radioId}-error` : undefined}
               {...props}
             />

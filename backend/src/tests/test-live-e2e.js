@@ -118,7 +118,7 @@ async function runLiveE2ETests() {
     console.log('\n3. Testing Live Individual Analysis with NLPProvider...');
     const nlpProvider = new NLPProvider({
       url: process.env.NLP_SERVICE_URL || 'http://127.0.0.1:8001',
-      timeout: 30000,
+      timeout: 60000,
       fallbackEnabled: true
     });
 

@@ -116,20 +116,7 @@ export default function AdminResearchAnalyticsPage() {
 
       const params = getActiveFilterParams();
 
-      const [
-        adminRes,
-        overviewRes,
-        sentimentRes,
-        toxicityRes,
-        aggressionRes,
-        cbRes,
-        conditionRes,
-        videoRes,
-        aiHumanRes,
-        responsesRes,
-        valRes,
-        reportRes
-      ] = await Promise.all([
+      const results = await Promise.allSettled([
         api.admin.me(),
         api.admin.researchAnalytics.overview(params),
         api.admin.researchAnalytics.sentiment(params),
@@ -144,18 +131,29 @@ export default function AdminResearchAnalyticsPage() {
         api.admin.researchAnalytics.supervisorReport(params)
       ]);
 
-      setAdmin(adminRes.data);
-      setOverview(overviewRes.data);
-      setSentiment(sentimentRes.data);
-      setToxicity(toxicityRes.data);
-      setAggression(aggressionRes.data);
-      setCyberbullying(cbRes.data);
-      setConditionComparison(conditionRes.data);
-      setVideoComparison(videoRes.data || []);
-      setAiHuman(aiHumanRes.data);
-      setResponsesTable(responsesRes.data);
-      setValidationData(valRes.data);
-      setSupervisorReport(reportRes.data);
+      const val = (r: PromiseSettledResult<any>) => (r.status === 'fulfilled' ? r.value?.data : null);
+
+      // Check if admin authentication failed
+      if (results[0].status === 'rejected') {
+        const err: any = results[0].reason;
+        if (err?.message === 'Admin authentication required' || err?.message?.includes('Unauthorized')) {
+          router.push('/admin/login');
+          return;
+        }
+      }
+
+      setAdmin(val(results[0]));
+      setOverview(val(results[1]));
+      setSentiment(val(results[2]));
+      setToxicity(val(results[3]));
+      setAggression(val(results[4]));
+      setCyberbullying(val(results[5]));
+      setConditionComparison(val(results[6]));
+      setVideoComparison(val(results[7]) || []);
+      setAiHuman(val(results[8]));
+      setResponsesTable(val(results[9]));
+      setValidationData(val(results[10]));
+      setSupervisorReport(val(results[11]));
     } catch (err: any) {
       if (err.message === 'Admin authentication required' || err.message?.includes('Unauthorized')) {
         router.push('/admin/login');

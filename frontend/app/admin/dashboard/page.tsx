@@ -93,32 +93,32 @@ export default function AdminDashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <StatCard
               title="Total Participants"
-              value={stats.participants.total}
+              value={stats.participants?.total ?? 0}
               color="blue"
             />
             <StatCard
               title="Anonymous Condition"
-              value={stats.participants.anonymous}
+              value={stats.participants?.anonymous ?? 0}
               color="purple"
             />
             <StatCard
               title="Identifiable Condition"
-              value={stats.participants.identifiable}
+              value={stats.participants?.identifiable ?? 0}
               color="indigo"
             />
             <StatCard
               title="Completed"
-              value={stats.participants.completed}
+              value={stats.participants?.completed ?? 0}
               color="green"
             />
             <StatCard
               title="Incomplete"
-              value={stats.participants.incomplete}
+              value={stats.participants?.incomplete ?? 0}
               color="yellow"
             />
             <StatCard
               title="Withdrawn"
-              value={stats.participants.withdrawn}
+              value={stats.participants?.withdrawn ?? 0}
               color="red"
             />
           </div>
@@ -132,12 +132,12 @@ export default function AdminDashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <StatCard
               title="Total Video Responses"
-              value={stats.experiment.totalResponses}
+              value={stats.experiment?.totalResponses ?? 0}
               color="blue"
             />
             <StatCard
               title="Completed Experiments"
-              value={stats.experiment.completedExperiments}
+              value={stats.experiment?.completedExperiments ?? 0}
               color="green"
             />
           </div>
@@ -151,17 +151,17 @@ export default function AdminDashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatCard
               title="Total Responses"
-              value={stats.coding.totalResponses}
+              value={stats.coding?.totalResponses ?? 0}
               color="blue"
             />
             <StatCard
               title="Coded"
-              value={stats.coding.codedResponses}
+              value={stats.coding?.codedResponses ?? 0}
               color="green"
             />
             <StatCard
               title="Pending Coding"
-              value={stats.coding.pendingResponses}
+              value={stats.coding?.pendingResponses ?? 0}
               color="yellow"
             />
           </div>

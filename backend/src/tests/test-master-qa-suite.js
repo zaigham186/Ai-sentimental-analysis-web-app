@@ -291,7 +291,7 @@ async function audit22SyntheticCases() {
 
   const nlpProvider = new NLPProvider({
     url: NLP_SERVICE_URL,
-    timeout: 30000,
+    timeout: 60000,
     fallbackEnabled: true
   });
   const codingService = new CodingAIService(nlpProvider);
@@ -374,7 +374,7 @@ async function auditAIHumanWorkflows() {
     responseTime: 35
   });
 
-  const nlpProvider = new NLPProvider({ url: NLP_SERVICE_URL, timeout: 30000, fallbackEnabled: true });
+  const nlpProvider = new NLPProvider({ url: NLP_SERVICE_URL, timeout: 60000, fallbackEnabled: true });
   const codingService = new CodingAIService(nlpProvider);
   const aiResult = await codingService.analyzeResponse(response.responseText);
   assert(aiResult.success === true, 'AI analysis completed successfully');

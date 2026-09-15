@@ -576,18 +576,22 @@ const analyzeWithAI = async (req, res) => {
 
     // Check if coding already exists
     let coding = await Coding.findPrimaryCoding(id);
-    if (coding && coding.aiCoding) {
+    const force = req.query.force === 'true' || req.body?.force === true;
+    const isFallback = Boolean(coding?.aiCoding?.metadata?.fallback_used);
+    const isPending = !coding?.reviewStatus || coding?.reviewStatus === 'pending';
+
+    if (coding && coding.aiCoding && !force && !isFallback && !isPending) {
       return res.status(400).json({
         success: false,
-        message: 'AI analysis already performed. Use the review endpoint to accept/modify/reject.'
+        message: 'AI analysis already performed and finalized. Use force=true to re-analyze.'
       });
     }
 
     // Perform AI analysis
     const context = {
-      condition: response.participant.condition,
-      videoTopic: response.video.topic,
-      videoOrder: response.video.order
+      condition: response.participant?.condition || 'anonymous',
+      videoTopic: response.video?.topic || 'general',
+      videoOrder: response.video?.order || 1
     };
 
     const aiResult = await codingAI.analyzeResponse(response.responseText, context);
@@ -881,26 +885,28 @@ const getPendingReview = async (req, res) => {
 
     const total = await Coding.countDocuments({ reviewStatus: 'pending' });
 
-    // Format response
-    const formattedCodings = codings.map(coding => ({
-      codingId: coding._id,
-      responseId: coding.response._id,
-      participant: coding.response.participant,
-      video: coding.response.video,
-      responseText: coding.response.responseText,
-      submittedAt: coding.response.submittedAt,
-      aiSuggestion: {
-        sentiment: coding.aiCoding.sentiment,
-        aggression: coding.aiCoding.aggression,
-        cyberbullying: coding.aiCoding.cyberbullying,
-        metadata: coding.aiCoding.metadata,
-        analyzedAt: coding.aiCoding.analyzedAt
-      },
-      needsReview:
-        coding.aiCoding.sentiment.needsReview ||
-        coding.aiCoding.aggression.needsReview ||
-        coding.aiCoding.cyberbullying.needsReview
-    }));
+    // Format response safely guarding against orphaned records
+    const formattedCodings = codings
+      .filter(coding => coding && coding.response)
+      .map(coding => ({
+        codingId: coding._id,
+        responseId: coding.response._id,
+        participant: coding.response.participant || { name: 'N/A', username: 'unknown', condition: 'anonymous' },
+        video: coding.response.video || { order: 'N/A', title: 'Unknown', topic: 'general' },
+        responseText: coding.response.responseText,
+        submittedAt: coding.response.submittedAt,
+        aiSuggestion: {
+          sentiment: coding.aiCoding.sentiment,
+          aggression: coding.aiCoding.aggression,
+          cyberbullying: coding.aiCoding.cyberbullying,
+          metadata: coding.aiCoding.metadata,
+          analyzedAt: coding.aiCoding.analyzedAt
+        },
+        needsReview:
+          coding.aiCoding.sentiment.needsReview ||
+          coding.aiCoding.aggression.needsReview ||
+          coding.aiCoding.cyberbullying.needsReview
+      }));
 
     res.json({
       success: true,
@@ -996,11 +1002,11 @@ const bulkAnalyze = async (req, res) => {
           continue;
         }
 
-        // Perform AI analysis
+        // Perform AI analysis safely
         const context = {
-          condition: response.participant.condition,
-          videoTopic: response.video.topic,
-          videoOrder: response.video.order
+          condition: response.participant?.condition || 'anonymous',
+          videoTopic: response.video?.topic || 'general',
+          videoOrder: response.video?.order || 1
         };
 
         const aiResult = await codingAI.analyzeResponse(response.responseText, context);

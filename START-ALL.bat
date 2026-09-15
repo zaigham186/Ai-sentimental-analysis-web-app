@@ -7,7 +7,7 @@ echo ========================================================
 echo.
 
 echo 1. Starting NLP Microservice (FastAPI, Port 8001)...
-start "NLP Microservice (Port 8001)" cmd /k "cd nlp-service && call venv\Scripts\activate.bat && uvicorn app.main:app --host 127.0.0.1 --port 8001"
+start "NLP Microservice (Port 8001)" cmd /k "cd nlp-service && chcp 65001 > nul && set PYTHONIOENCODING=utf-8 && call venv\Scripts\activate.bat && uvicorn app.main:app --host 127.0.0.1 --port 8001"
 
 timeout /t 3 /nobreak > nul
 

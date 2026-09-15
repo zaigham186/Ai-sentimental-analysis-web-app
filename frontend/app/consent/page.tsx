@@ -111,12 +111,6 @@ export default function ConsentPage() {
           </Alert>
         )}
 
-        {debugInfo && (
-          <Alert variant="info" className="mb-6">
-            <strong>Debug:</strong> {debugInfo}
-          </Alert>
-        )}
-
         <Card>
           <CardBody>
             {/* Consent Document */}

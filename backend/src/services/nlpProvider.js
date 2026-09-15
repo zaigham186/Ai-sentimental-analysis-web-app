@@ -22,7 +22,7 @@ class NLPProvider extends CodingProvider {
     });
 
     this.url = options.url || process.env.NLP_SERVICE_URL || 'http://127.0.0.1:8001';
-    this.timeout = options.timeout || parseInt(process.env.NLP_SERVICE_TIMEOUT_MS, 10) || 30000;
+    this.timeout = options.timeout || parseInt(process.env.NLP_SERVICE_TIMEOUT_MS, 10) || 60000;
     this.fallbackEnabled = options.fallbackEnabled !== undefined
       ? options.fallbackEnabled
       : (process.env.NLP_FALLBACK_ENABLED !== 'false');

@@ -84,6 +84,13 @@ class UnifiedAnalyzer:
         
         if self._models_loaded:
             logger.info(f"✅ All models and resources loaded successfully in {elapsed:.2f}s")
+            try:
+                logger.info("Pre-warming models with initial forward pass...")
+                warmup_start = time.time()
+                self.analyze("Warmup test input for initial model graph execution.")
+                logger.info(f"✅ Models pre-warmed successfully in {time.time() - warmup_start:.2f}s")
+            except Exception as w_err:
+                logger.warning(f"Pre-warmup non-critical notice: {w_err}")
         else:
             logger.warning(f"⚠️ Some models/resources failed to load: {results}")
         

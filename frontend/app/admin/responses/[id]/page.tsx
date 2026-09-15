@@ -124,30 +124,32 @@ export default function ResponseDetailPage() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
-                <InfoRow label="Name" value={response.participant.name} />
-                <InfoRow label="Username" value={`@${response.participant.username}`} />
+                <InfoRow label="Name" value={response.participant?.name || 'N/A'} />
+                <InfoRow label="Username" value={`@${response.participant?.username || 'unknown'}`} />
               </div>
               <div className="space-y-3">
                 <InfoRow 
                   label="Condition" 
-                  value={<ConditionBadge condition={response.participant.condition} />} 
+                  value={<ConditionBadge condition={response.participant?.condition || 'anonymous'} />} 
                 />
                 <InfoRow 
                   label="Status" 
-                  value={<StatusBadge status={response.participant.status} />} 
+                  value={<StatusBadge status={response.participant?.status || 'incomplete'} />} 
                 />
               </div>
             </div>
 
-            <div className="mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleViewParticipant(response.participant._id)}
-              >
-                View Full Participant Profile
-              </Button>
-            </div>
+            {response.participant?._id && (
+              <div className="mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleViewParticipant(response.participant._id)}
+                >
+                  View Full Participant Profile
+                </Button>
+              </div>
+            )}
           </CardBody>
         </Card>
 
@@ -157,9 +159,9 @@ export default function ResponseDetailPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-4">Video Information</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <InfoRow label="Video Order" value={`#${response.video.order}`} />
-              <InfoRow label="Title" value={response.video.title} />
-              <InfoRow label="Topic" value={response.video.topic} />
+              <InfoRow label="Video Order" value={`#${response.video?.order || 'N/A'}`} />
+              <InfoRow label="Title" value={response.video?.title || 'Unknown'} />
+              <InfoRow label="Topic" value={response.video?.topic || 'N/A'} />
             </div>
           </CardBody>
         </Card>

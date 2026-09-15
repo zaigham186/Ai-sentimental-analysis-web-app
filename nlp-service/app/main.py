@@ -198,7 +198,7 @@ async def get_models_info():
         503: {"model": ErrorResponse, "description": "Models not ready"}
     }
 )
-async def analyze_text(request: AnalysisRequest):
+def analyze_text(request: AnalysisRequest):
     """
     Comprehensive NLP Analysis - Phase 3
     

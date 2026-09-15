@@ -72,10 +72,11 @@ const login = async (req, res) => {
     await admin.recordLogin(ipAddress);
 
     // Create session cookie
+    const isSecure = (req.secure || req.headers['x-forwarded-proto'] === 'https') && process.env.NODE_ENV === 'production';
     const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-      sameSite: 'strict',
+      secure: isSecure,
+      sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     };
 
@@ -109,7 +110,7 @@ const login = async (req, res) => {
  */
 const logout = async (req, res) => {
   try {
-    res.clearCookie('adminSession');
+    res.clearCookie('adminSession', { sameSite: 'lax' });
 
     res.json({
       success: true,

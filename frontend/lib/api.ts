@@ -12,8 +12,21 @@ interface RequestOptions extends RequestInit {
 /**
  * Base fetch wrapper with error handling
  */
+const getApiBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocalhost && API_URL.includes('localhost')) {
+      return `http://${window.location.hostname}:5000`;
+    }
+  }
+  return API_URL;
+};
+
+/**
+ * Base fetch wrapper with error handling
+ */
 async function fetchAPI(endpoint: string, options: RequestOptions = {}) {
-  const url = `${API_URL}${endpoint}`;
+  const url = `${getApiBaseUrl()}${endpoint}`;
 
   const config: RequestInit = {
     ...options,
@@ -32,12 +45,20 @@ async function fetchAPI(endpoint: string, options: RequestOptions = {}) {
   try {
     const response = await fetch(url, config);
 
-    // Parse JSON response
-    const data = await response.json();
+    // Parse response safely
+    const text = await response.text();
+    let data: any = {};
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { message: text };
+      }
+    }
 
     // Handle error responses
     if (!response.ok) {
-      throw new Error(data.message || 'An error occurred');
+      throw new Error(data.message || `Request failed with status ${response.status}`);
     }
 
     return data;
@@ -278,8 +299,8 @@ export const api = {
       // Phase 10 Enhancement: AI-Assisted Coding
 
       // Trigger AI analysis for a response
-      analyzeWithAI: (id: string) =>
-        fetchAPI(`/api/admin/coding/${id}/analyze`, { method: 'POST' }),
+      analyzeWithAI: (id: string, options?: { force?: boolean }) =>
+        fetchAPI(`/api/admin/coding/${id}/analyze${options?.force ? '?force=true' : ''}`, { method: 'POST' }),
 
       // Human review of AI suggestion
       reviewAI: (id: string, data: {

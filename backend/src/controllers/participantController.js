@@ -31,10 +31,11 @@ const submitConsent = async (req, res) => {
     };
 
     // Store in cookie (temporary until registration)
+    const isSecure = (req.secure || req.headers['x-forwarded-proto'] === 'https') && config.nodeEnv === 'production';
     res.cookie('pendingConsent', JSON.stringify(consentData), {
       httpOnly: true,
-      secure: config.nodeEnv === 'production',
-      sameSite: 'strict',
+      secure: isSecure,
+      sameSite: 'lax',
       maxAge: 30 * 60 * 1000 // 30 minutes
     });
 
@@ -129,15 +130,16 @@ const registerParticipant = async (req, res) => {
     });
 
     // Create session
+    const isSecure = (req.secure || req.headers['x-forwarded-proto'] === 'https') && config.nodeEnv === 'production';
     res.cookie('participantSession', participant._id.toString(), {
       httpOnly: true,
-      secure: config.nodeEnv === 'production',
-      sameSite: 'strict',
+      secure: isSecure,
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
     // Clear pending consent cookie
-    res.clearCookie('pendingConsent');
+    res.clearCookie('pendingConsent', { sameSite: 'lax' });
 
     // Log registration
     await AuditLog.logAction({
@@ -246,7 +248,7 @@ const checkSession = async (req, res) => {
 
     if (!participant || participant.status === 'withdrawn') {
       // Clear invalid session
-      res.clearCookie('participantSession');
+      res.clearCookie('participantSession', { sameSite: 'lax' });
       return res.json({
         success: true,
         data: {
@@ -259,19 +261,21 @@ const checkSession = async (req, res) => {
       success: true,
       data: {
         authenticated: true,
-        username: participant.username,
-        status: participant.status,
-        consentGiven: participant.consentGiven
+        participant: {
+          id: participant._id,
+          name: participant.name,
+          username: participant.username,
+          condition: participant.condition,
+          status: participant.status
+        }
       }
     });
 
   } catch (error) {
-    console.error('Session check error:', error);
-    res.json({
-      success: true,
-      data: {
-        authenticated: false
-      }
+    console.error('Check session error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check session'
     });
   }
 };
@@ -282,8 +286,8 @@ const checkSession = async (req, res) => {
  */
 const logout = async (req, res) => {
   try {
-    res.clearCookie('participantSession');
-    res.clearCookie('pendingConsent');
+    res.clearCookie('participantSession', { sameSite: 'lax' });
+    res.clearCookie('pendingConsent', { sameSite: 'lax' });
 
     res.json({
       success: true,

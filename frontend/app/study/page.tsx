@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Card, CardBody } from '@/components/ui/Card';

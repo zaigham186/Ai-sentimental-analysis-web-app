@@ -236,10 +236,10 @@ export default function ExperimentPage() {
         <Card>
           <CardBody>
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              {videoData.video.title}
+              {videoData.video?.title || 'Video Scenario'}
             </h2>
 
-            {videoData.video.description && (
+            {videoData.video?.description && (
               <p className="text-gray-700 mb-6">
                 {videoData.video.description}
               </p>
@@ -247,12 +247,12 @@ export default function ExperimentPage() {
 
             {/* Video Player */}
             <div className="relative bg-black rounded-lg overflow-hidden mb-6" style={{ paddingBottom: '56.25%' }}>
-              {!videoError ? (
+              {!videoError && videoData.video?.videoUrl ? (
                 <video
                   className="absolute top-0 left-0 w-full h-full"
                   controls
                   onError={handleVideoError}
-                  key={videoData.video.id}
+                  key={videoData.video?.id || 'video'}
                 >
                   <source src={videoData.video.videoUrl} type="video/mp4" />
                   Your browser does not support the video tag.

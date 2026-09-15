@@ -702,20 +702,20 @@ export default function AdminCodingPage() {
                             <tr key={response.id} className="hover:bg-gray-50 transition-colors">
                               <td className="px-4 py-3 text-sm text-gray-900">
                                 <div>
-                                  <div className="font-semibold">{response.participant.name}</div>
+                                  <div className="font-semibold">{response.participant?.name || 'N/A'}</div>
                                   <div className="text-gray-500 text-xs font-mono">
-                                    @{response.participant.username}
+                                    @{response.participant?.username || 'unknown'}
                                   </div>
                                 </div>
                               </td>
                               <td className="px-4 py-3 text-sm">
-                                <ConditionBadge condition={response.participant.condition} />
+                                <ConditionBadge condition={response.participant?.condition || 'anonymous'} />
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-600">
                                 <div>
-                                  <div className="font-semibold">#{response.video.order}</div>
+                                  <div className="font-semibold">#{response.video?.order || 'N/A'}</div>
                                   <div className="text-xs text-gray-500 truncate max-w-[140px]">
-                                    {response.video.title}
+                                    {response.video?.title || 'Unknown'}
                                   </div>
                                 </div>
                               </td>

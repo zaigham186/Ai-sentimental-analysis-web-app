@@ -121,20 +121,20 @@ export default function CodingDetailPage() {
   };
 
   // Trigger AI Analysis
-  const handleAnalyzeWithAI = async () => {
+  const handleAnalyzeWithAI = async (options?: { force?: boolean }) => {
     try {
       setAnalyzing(true);
       setError(null);
       setSuccess(null);
 
-      const result = await api.admin.coding.analyzeWithAI(responseId);
+      const result = await api.admin.coding.analyzeWithAI(responseId, options);
       setSuccess(result.message || 'AI analysis completed successfully. Please review the results below.');
       
       // Reload to reflect newly generated AI suggestion
       await loadData();
     } catch (err: any) {
-      // Safe sanitized error - do not expose server stack traces or internal URLs
-      setError('AI analysis could not be completed. Please try again or use manual coding.');
+      const msg = err?.message;
+      setError(msg && msg !== 'An error occurred' ? msg : 'AI analysis could not be completed. Please ensure the NLP service is running or use manual coding.');
     } finally {
       setAnalyzing(false);
     }
@@ -390,7 +390,7 @@ export default function CodingDetailPage() {
               )}
             </div>
             <p className="mt-1 text-gray-600">
-              Participant: <span className="font-semibold text-gray-800">{response.participant.name}</span> (@{response.participant.username}) &bull; Video: <span className="font-medium text-gray-800">#{response.video.order} {response.video.title}</span>
+              Participant: <span className="font-semibold text-gray-800">{response.participant?.name || 'N/A'}</span> (@{response.participant?.username || 'unknown'}) &bull; Video: <span className="font-medium text-gray-800">#{response.video?.order || 'N/A'} {response.video?.title || 'Unknown'}</span>
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -440,7 +440,7 @@ export default function CodingDetailPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <Button
-                    onClick={handleAnalyzeWithAI}
+                    onClick={() => handleAnalyzeWithAI()}
                     disabled={analyzing}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2.5 shadow-sm"
                   >
@@ -453,16 +453,16 @@ export default function CodingDetailPage() {
         )}
 
         {/* Re-analyze banner if already analyzed */}
-        {aiSuggestion && !hasUnreviewedAI && (
+        {aiSuggestion && (
           <div className="mb-6 flex justify-end">
             <Button
               variant="outline"
               size="sm"
-              onClick={handleAnalyzeWithAI}
+              onClick={() => handleAnalyzeWithAI({ force: true })}
               disabled={analyzing}
-              className="text-gray-700 hover:bg-gray-100"
+              className={isFallbackUsed ? "text-amber-900 bg-amber-100 hover:bg-amber-200 border-amber-300 font-semibold" : "text-gray-700 hover:bg-gray-100"}
             >
-              {analyzing ? '⏳ Re-analyzing...' : '🔄 Re-analyze with AI'}
+              {analyzing ? '⏳ Re-analyzing with Primary NLP...' : (isFallbackUsed ? '🔄 Re-analyze with Primary NLP Service' : '🔄 Re-analyze with AI')}
             </Button>
           </div>
         )}
@@ -482,17 +482,17 @@ export default function CodingDetailPage() {
                   <div>
                     <span className="block text-xs font-semibold uppercase tracking-wider text-gray-500">Condition</span>
                     <span className={`inline-flex mt-1 px-2.5 py-1 text-xs font-semibold rounded-full ${
-                      response.participant.condition === 'anonymous' 
+                      response.participant?.condition === 'anonymous' 
                         ? 'bg-blue-100 text-blue-800' 
                         : 'bg-purple-100 text-purple-800'
                     }`}>
-                      {response.participant.condition === 'anonymous' ? 'Anonymous Condition' : 'Identifiable Condition'}
+                      {response.participant?.condition === 'anonymous' ? 'Anonymous Condition' : 'Identifiable Condition'}
                     </span>
                   </div>
 
                   <div>
                     <span className="block text-xs font-semibold uppercase tracking-wider text-gray-500">Stimulus Video</span>
-                    <p className="mt-0.5 text-gray-900 font-medium">#{response.video.order} &bull; {response.video.title}</p>
+                    <p className="mt-0.5 text-gray-900 font-medium">#{response.video?.order || 'N/A'} &bull; {response.video?.title || 'Unknown'}</p>
                   </div>
 
                   <div>
@@ -599,6 +599,16 @@ export default function CodingDetailPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                      {isFallbackUsed && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleAnalyzeWithAI({ force: true })}
+                          disabled={analyzing}
+                          className="bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs px-3 py-1.5 shadow-sm"
+                        >
+                          {analyzing ? '⏳ Re-analyzing...' : '🔄 Re-analyze with Primary NLP'}
+                        </Button>
+                      )}
                       {hasUnreviewedAI && (
                         <span className="px-2.5 py-1 text-xs font-bold bg-yellow-400 text-yellow-950 rounded-md">
                           ACTION REQUIRED

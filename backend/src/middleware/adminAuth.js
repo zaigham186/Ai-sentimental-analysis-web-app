@@ -24,7 +24,7 @@ const authenticateAdmin = async (req, res, next) => {
     }
 
     if (!mongoose.Types.ObjectId.isValid(adminId)) {
-      res.clearCookie('adminSession');
+      res.clearCookie('adminSession', { sameSite: 'lax' });
       return res.status(401).json({
         success: false,
         message: 'Invalid admin session'
@@ -36,7 +36,7 @@ const authenticateAdmin = async (req, res, next) => {
 
     if (!admin) {
       // Invalid session - clear cookie
-      res.clearCookie('adminSession');
+      res.clearCookie('adminSession', { sameSite: 'lax' });
       return res.status(401).json({
         success: false,
         message: 'Invalid admin session'

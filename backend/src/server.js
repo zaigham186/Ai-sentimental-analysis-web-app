@@ -21,9 +21,28 @@ app.set('trust proxy', 1);
 // Security middleware
 app.use(helmetMiddleware);
 
-// CORS configuration - Allow both 3000 and 3001 for testing
+// CORS configuration - Support localhost and 127.0.0.1 across ports
+const allowedOrigins = [
+  config.frontendUrl,
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001'
+];
+
 app.use(cors({
-  origin: [config.frontendUrl, 'http://localhost:3001', 'http://localhost:3000'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, server-to-server)
+    if (!origin) return callback(null, true);
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.startsWith('http://localhost:') ||
+      origin.startsWith('http://127.0.0.1:')
+    ) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -92,6 +111,14 @@ const startServer = async () => {
 
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
+
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    });
+
+    process.on('uncaughtException', (error) => {
+      console.error('Uncaught Exception:', error);
+    });
 
   } catch (error) {
     console.error('✗ Failed to start server:', error.message);

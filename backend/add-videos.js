@@ -104,7 +104,7 @@ const videos = [
     videoId: 'video-009',
     title: 'Scenario 9: Discussion Board Thread',
     description: 'A scenario depicting an ambiguous online interaction',
-    videoUrl: 'https://res.cloudinary.com/byvhmrm7/video/upload/v1788805237/vidoe9.mp4',
+    videoUrl: 'https://res.cloudinary.com/byvhmrm7/video/upload/v1788805237/video9.mp4',
     thumbnailUrl: null,
     duration: 43,
     order: 9,
