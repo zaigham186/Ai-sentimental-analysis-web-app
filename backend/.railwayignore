@@ -1,0 +1,22 @@
+# Railway Ignore File
+# Files and directories to ignore during Railway deployment
+
+# Development
+node_modules/
+.env
+.env.local
+.env.development
+
+# Testing
+*.test.js
+tests/
+__tests__/
+
+# Logs
+logs/
+*.log
+
+# Misc
+.DS_Store
+.vscode/
+.idea/
