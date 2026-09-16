@@ -5,18 +5,18 @@ PHASE 2: Real NLP Model Implementation
 - Sentiment analysis (XLM-RoBERTa multilingual)
 - Toxicity detection (Detoxify multilingual)
 - POST /analyze endpoint with real inference
-- Models loaded in BACKGROUND so healthcheck passes immediately
+- Models loaded in BACKGROUND THREAD so healthcheck passes immediately
 - CPU/CUDA support
 """
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 import os
 from dotenv import load_dotenv
 import logging
 import sys
 import asyncio
+import concurrent.futures
 
 # Ensure UTF-8 output encoding for emojis on Windows
 if hasattr(sys.stdout, 'reconfigure'):
@@ -56,17 +56,14 @@ MAX_TEXT_LENGTH = int(os.getenv("MAX_TEXT_LENGTH", 5000))
 SENTIMENT_MODEL = os.getenv("SENTIMENT_MODEL", "cardiffnlp/twitter-xlm-roberta-base-sentiment")
 TOXICITY_MODEL = os.getenv("TOXICITY_MODEL", "multilingual")
 
-# Global analyzer instance (loaded in background on startup)
+# Global state
 analyzer: UnifiedAnalyzer = None
-
-# ============================================================================
-# THIS IS THE KEY FIX
-# models_ready = False means healthcheck passes immediately
-# even before models finish downloading
-# ============================================================================
 models_ready = False
 models_loading = False
 models_error = None
+
+# Thread pool for running blocking model loading
+thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
 # Create FastAPI application
 app = FastAPI(
@@ -74,29 +71,14 @@ app = FastAPI(
     version=APP_VERSION,
     description="""
     Isolated Python NLP Microservice for Research Coding System
-
-    **Phase 2: Real NLP Model Implementation**
-
-    This service provides sentiment and toxicity analysis using:
-    - **Sentiment**: cardiffnlp/twitter-xlm-roberta-base-sentiment (XLM-RoBERTa multilingual)
-    - **Toxicity**: Detoxify multilingual
-
-    Models are loaded once on startup and cached for fast inference.
-    Supports CPU (CUDA optional if available).
-
-    **Current endpoints:**
-    - GET / - Service information
-    - GET /health - Health check with model status
-    - GET /models - Model configuration and loading status
-    - POST /analyze - Comprehensive NLP analysis
-    - GET /docs - This Swagger UI
+    Models load in background thread - healthcheck passes immediately.
     """,
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json"
 )
 
-# CORS configuration - updated for production
+# CORS - open for production
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -107,12 +89,11 @@ app.add_middleware(
 
 
 # ============================================================================
-# ROOT ENDPOINT
+# ROOT ENDPOINT - returns immediately always
 # ============================================================================
 
 @app.get("/")
 async def root():
-    """Service information endpoint"""
     return {
         "success": True,
         "service": APP_NAME,
@@ -124,17 +105,11 @@ async def root():
 
 
 # ============================================================================
-# HEALTH CHECK ENDPOINT
-# THIS NOW RETURNS IMMEDIATELY - DOES NOT WAIT FOR MODELS
+# HEALTH CHECK - returns immediately, Railway uses this
 # ============================================================================
 
 @app.get("/health")
 async def health_check():
-    """
-    Health check endpoint - returns immediately regardless of model status.
-    Railway uses this to check if service is alive.
-    models_ready tells you if models finished loading.
-    """
     return {
         "success": True,
         "status": "healthy",
@@ -145,23 +120,19 @@ async def health_check():
 
 
 # ============================================================================
-# MODELS INFORMATION ENDPOINT
+# MODELS INFO
 # ============================================================================
 
 @app.get("/models")
 async def get_models_info():
-    """Model configuration and loading status"""
     if analyzer is None:
         return {
             "success": True,
             "status": "loading" if models_loading else "initializing",
             "sentiment": SENTIMENT_MODEL,
             "toxicity": TOXICITY_MODEL,
-            "aggression": "aggression-lexicon-xu-2020",
-            "cyberbullying": "research-operational-definition",
             "models_ready": models_ready
         }
-
     return {
         "success": True,
         "status": "loaded" if analyzer.is_ready else "loading",
@@ -184,9 +155,6 @@ async def get_models_info():
     }
 )
 def analyze_text(request: AnalysisRequest):
-    """Comprehensive NLP Analysis"""
-
-    # Check if models are loaded
     if not models_ready or analyzer is None or not analyzer.is_ready:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -203,7 +171,6 @@ def analyze_text(request: AnalysisRequest):
             text=request.text,
             context=request.context.dict() if request.context else None
         )
-
         return AnalysisResponse(
             success=True,
             request_id=result["request_id"],
@@ -218,123 +185,118 @@ def analyze_text(request: AnalysisRequest):
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "success": False,
-                "error": str(e),
-                "details": {"error_type": "ValidationError"}
-            }
+            detail={"success": False, "error": str(e)}
         )
-
-    except RuntimeError as e:
-        logger.error(f"Analysis failed: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "success": False,
-                "error": "Analysis failed",
-                "details": {"error_message": str(e)}
-            }
-        )
-
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "success": False,
-                "error": "Internal server error",
-                "details": {"error_type": type(e).__name__}
-            }
+            detail={"success": False, "error": "Internal server error"}
         )
 
 
 # ============================================================================
-# BACKGROUND MODEL LOADING FUNCTION
-# THIS IS THE KEY FIX - models load in background
-# healthcheck passes immediately while this runs
+# THIS IS THE ACTUAL BLOCKING FUNCTION - runs in a thread
 # ============================================================================
 
-async def load_models_in_background():
+def _load_models_sync():
     """
-    Load NLP models in background.
-    This runs AFTER the server starts and healthcheck passes.
-    Railway will see the service as healthy immediately.
-    Models finish loading 2-3 minutes later in background.
+    This runs in a separate thread via run_in_executor.
+    Blocking code here does NOT freeze the event loop.
+    Uvicorn finishes startup and opens port while this runs.
     """
     global analyzer, models_ready, models_loading, models_error
 
-    models_loading = True
-    logger.info("=" * 80)
-    logger.info("🔄 Loading NLP models in background...")
-    logger.info("✅ Server is already healthy - models loading in background")
-    logger.info("=" * 80)
-
     try:
-        # Initialize analyzer
-        logger.info("Initializing UnifiedAnalyzer...")
-        analyzer = UnifiedAnalyzer(
+        logger.info("🔄 Thread started - loading NLP models...")
+
+        analyzer_instance = UnifiedAnalyzer(
             sentiment_model=SENTIMENT_MODEL,
             toxicity_model=TOXICITY_MODEL
         )
 
-        # Load models - this is the slow part (downloads XLM-R)
-        logger.info("Downloading and loading models - this takes 2-5 minutes...")
-        load_results = analyzer.load_models()
+        logger.info("Downloading models from Hugging Face - takes 3-5 minutes...")
+        load_results = analyzer_instance.load_models()
 
-        logger.info("=" * 80)
         logger.info("Model Loading Results:")
         for model_name, loaded in load_results.items():
-            status_icon = "✅" if loaded else "❌"
-            logger.info(f"  {status_icon} {model_name}: {'loaded' if loaded else 'failed'}")
-        logger.info("=" * 80)
+            icon = "✅" if loaded else "❌"
+            logger.info(f"  {icon} {model_name}: {'loaded' if loaded else 'failed'}")
 
-        if analyzer.is_ready:
+        if analyzer_instance.is_ready:
+            # Only set global analyzer after fully loaded
+            global analyzer
+            analyzer = analyzer_instance
             models_ready = True
             models_loading = False
             logger.info("✅ ALL MODELS LOADED - NLP Service fully ready for inference!")
         else:
             models_loading = False
             models_error = "Some models failed to load"
-            logger.warning("⚠️ Some models failed to load. Service has limited functionality.")
+            logger.warning("⚠️ Some models failed to load")
 
     except Exception as e:
         models_loading = False
         models_error = str(e)
-        logger.error(f"❌ Failed to load models: {str(e)}", exc_info=True)
-        logger.warning("⚠️ Service is running but analysis endpoints will not work.")
+        logger.error(f"❌ Model loading failed: {str(e)}", exc_info=True)
 
 
 # ============================================================================
-# STARTUP EVENT - NOW JUST TRIGGERS BACKGROUND LOADING
-# Server starts immediately, models load in background
+# BACKGROUND ASYNC WRAPPER
+# ============================================================================
+
+async def load_models_in_background():
+    """
+    Async wrapper that runs blocking model loading in a thread pool.
+    run_in_executor = run blocking code without freezing async event loop.
+    This is the correct Python way to do this.
+    """
+    global models_loading
+    models_loading = True
+
+    loop = asyncio.get_event_loop()
+    logger.info("🔄 Scheduling model loading in background thread...")
+
+    # THIS IS THE KEY FIX
+    # run_in_executor puts _load_models_sync() in a thread
+    # event loop is NOT blocked
+    # uvicorn finishes startup immediately
+    # port opens immediately
+    # healthcheck passes immediately
+    await loop.run_in_executor(thread_pool, _load_models_sync)
+
+
+# ============================================================================
+# STARTUP EVENT
 # ============================================================================
 
 @app.on_event("startup")
 async def startup_event():
     """
-    Startup - triggers background model loading.
     Server starts immediately.
-    Models load in background over next 2-5 minutes.
+    Model loading scheduled in background thread.
     Healthcheck passes right away.
     """
     logger.info("=" * 80)
     logger.info(f"🚀 {APP_NAME} v{APP_VERSION} starting...")
     logger.info(f"📍 Running on http://{HOST}:{PORT}")
     logger.info(f"📚 Swagger docs: http://{HOST}:{PORT}/docs")
-    logger.info("✅ Server starting - models will load in background")
+    logger.info("✅ Server ready - models loading in background thread")
     logger.info("=" * 80)
 
-    # THIS IS THE FIX:
-    # asyncio.create_task runs model loading in background
-    # startup_event returns immediately
-    # Railway healthcheck passes right away
+    # Schedule background loading
+    # create_task returns immediately
+    # startup_event completes immediately
+    # uvicorn marks startup as complete
+    # port opens
+    # Railway healthcheck passes
     asyncio.create_task(load_models_in_background())
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Clean up resources on shutdown."""
     logger.info(f"🛑 {APP_NAME} shutting down...")
+    thread_pool.shutdown(wait=False)
     logger.info("✅ Shutdown complete")
 
 
