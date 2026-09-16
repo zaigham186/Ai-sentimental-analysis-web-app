@@ -20,3 +20,15 @@ logs/
 .DS_Store
 .vscode/
 .idea/
+
+node_modules
+nlp-service
+frontend
+*.md
+*.bat
+*.html
+*.csv
+*.js
+docs
+scripts
+validation
