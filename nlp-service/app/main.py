@@ -1,7 +1,7 @@
 """
 Research NLP Service - Main FastAPI Application
 Fixed for FastAPI 0.141.1 using modern lifespan pattern
-"""
+
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, status
@@ -270,4 +270,3 @@ def analyze_text(request: AnalysisRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host=HOST, port=PORT, reload=False)
-    
