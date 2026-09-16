@@ -1,14 +1,9 @@
 """
 Research NLP Service - Main FastAPI Application
-
-PHASE 2: Real NLP Model Implementation
-- Sentiment analysis (XLM-RoBERTa multilingual)
-- Toxicity detection (Detoxify multilingual)
-- POST /analyze endpoint with real inference
-- Models loaded in BACKGROUND THREAD so healthcheck passes immediately
-- CPU/CUDA support
+Fixed for FastAPI 0.141.1 using modern lifespan pattern
 """
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 import os
@@ -16,21 +11,19 @@ from dotenv import load_dotenv
 import logging
 import sys
 import asyncio
-import concurrent.futures
+import threading
 
-# Ensure UTF-8 output encoding for emojis on Windows
+# UTF-8 output
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8')
 
-# Configure logging
+# Logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger(__name__)
 
@@ -45,14 +38,12 @@ from app.services.analyzer import UnifiedAnalyzer
 # Load environment variables
 load_dotenv()
 
-# Application configuration
+# Configuration
 APP_NAME = os.getenv("APP_NAME", "Research NLP Service")
 APP_VERSION = os.getenv("APP_VERSION", "2.0.0")
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", 8000))
 MAX_TEXT_LENGTH = int(os.getenv("MAX_TEXT_LENGTH", 5000))
-
-# Model configuration
 SENTIMENT_MODEL = os.getenv("SENTIMENT_MODEL", "cardiffnlp/twitter-xlm-roberta-base-sentiment")
 TOXICITY_MODEL = os.getenv("TOXICITY_MODEL", "multilingual")
 
@@ -62,23 +53,110 @@ models_ready = False
 models_loading = False
 models_error = None
 
-# Thread pool for running blocking model loading
-thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
-# Create FastAPI application
+# ============================================================================
+# BLOCKING MODEL LOADER - runs in a real OS thread
+# completely separate from asyncio event loop
+# ============================================================================
+
+def load_models_thread():
+    """
+    Runs in a real OS thread via threading.Thread
+    Completely separate from asyncio - cannot block event loop
+    Uvicorn starts immediately, port opens, healthcheck passes
+    Models load here in parallel
+    """
+    global analyzer, models_ready, models_loading, models_error
+
+    logger.info("🔄 Model loading thread started...")
+
+    try:
+        instance = UnifiedAnalyzer(
+            sentiment_model=SENTIMENT_MODEL,
+            toxicity_model=TOXICITY_MODEL
+        )
+
+        logger.info("📥 Downloading models - this takes 3-5 minutes...")
+        load_results = instance.load_models()
+
+        logger.info("Model Loading Results:")
+        for name, loaded in load_results.items():
+            icon = "✅" if loaded else "❌"
+            logger.info(f"  {icon} {name}: {'loaded' if loaded else 'failed'}")
+
+        if instance.is_ready:
+            analyzer = instance
+            models_ready = True
+            models_loading = False
+            logger.info("✅ ALL MODELS LOADED - Ready for inference!")
+        else:
+            models_loading = False
+            models_error = "Some models failed to load"
+            logger.warning("⚠️ Some models failed to load")
+
+    except Exception as e:
+        models_loading = False
+        models_error = str(e)
+        logger.error(f"❌ Model loading failed: {str(e)}", exc_info=True)
+
+
+# ============================================================================
+# LIFESPAN - correct pattern for FastAPI 0.100+
+# This replaces @app.on_event("startup")
+# ============================================================================
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Modern FastAPI lifespan context manager.
+    Code before yield = startup
+    Code after yield = shutdown
+    
+    Threading.Thread starts model loading completely outside asyncio.
+    Lifespan yields immediately.
+    Uvicorn sees startup complete.
+    Port opens.
+    Healthcheck passes.
+    """
+    global models_loading
+
+    logger.info("=" * 70)
+    logger.info(f"🚀 {APP_NAME} v{APP_VERSION} starting...")
+    logger.info(f"📍 Port: {PORT}")
+    logger.info(f"📚 Docs: http://{HOST}:{PORT}/docs")
+    logger.info("=" * 70)
+
+    # Start model loading in a REAL OS thread
+    # This is completely outside asyncio
+    # Cannot block event loop under any circumstances
+    models_loading = True
+    t = threading.Thread(target=load_models_thread, daemon=True)
+    t.start()
+    logger.info("✅ Model loading thread started - server ready immediately")
+
+    # yield = server is now running
+    # everything above runs at startup
+    # everything below runs at shutdown
+    yield
+
+    # Shutdown
+    logger.info(f"🛑 {APP_NAME} shutting down...")
+    logger.info("✅ Shutdown complete")
+
+
+# ============================================================================
+# CREATE APP WITH LIFESPAN
+# ============================================================================
+
 app = FastAPI(
     title=APP_NAME,
     version=APP_VERSION,
-    description="""
-    Isolated Python NLP Microservice for Research Coding System
-    Models load in background thread - healthcheck passes immediately.
-    """,
+    lifespan=lifespan,      # <-- uses new lifespan pattern
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json"
 )
 
-# CORS - open for production
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -89,7 +167,7 @@ app.add_middleware(
 
 
 # ============================================================================
-# ROOT ENDPOINT - returns immediately always
+# ENDPOINTS
 # ============================================================================
 
 @app.get("/")
@@ -104,12 +182,11 @@ async def root():
     }
 
 
-# ============================================================================
-# HEALTH CHECK - returns immediately, Railway uses this
-# ============================================================================
-
 @app.get("/health")
 async def health_check():
+    # Returns immediately always
+    # No waiting for models
+    # Railway healthcheck passes instantly
     return {
         "success": True,
         "status": "healthy",
@@ -118,10 +195,6 @@ async def health_check():
         "models_error": models_error
     }
 
-
-# ============================================================================
-# MODELS INFO
-# ============================================================================
 
 @app.get("/models")
 async def get_models_info():
@@ -141,10 +214,6 @@ async def get_models_info():
     }
 
 
-# ============================================================================
-# ANALYSIS ENDPOINT
-# ============================================================================
-
 @app.post(
     "/analyze",
     response_model=AnalysisResponse,
@@ -160,7 +229,7 @@ def analyze_text(request: AnalysisRequest):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={
                 "success": False,
-                "error": "NLP models are still loading. Please wait 2-3 minutes and try again.",
+                "error": "Models still loading. Wait 3-5 minutes and try again.",
                 "models_ready": models_ready,
                 "models_loading": models_loading
             }
@@ -181,14 +250,13 @@ def analyze_text(request: AnalysisRequest):
             cyberbullying=result.get("cyberbullying"),
             metadata=result["metadata"]
         )
-
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"success": False, "error": str(e)}
         )
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        logger.error(f"Error: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"success": False, "error": "Internal server error"}
@@ -196,119 +264,10 @@ def analyze_text(request: AnalysisRequest):
 
 
 # ============================================================================
-# THIS IS THE ACTUAL BLOCKING FUNCTION - runs in a thread
-# ============================================================================
-
-def _load_models_sync():
-    """
-    This runs in a separate thread via run_in_executor.
-    Blocking code here does NOT freeze the event loop.
-    Uvicorn finishes startup and opens port while this runs.
-    """
-    global analyzer, models_ready, models_loading, models_error
-
-    try:
-        logger.info("🔄 Thread started - loading NLP models...")
-
-        analyzer_instance = UnifiedAnalyzer(
-            sentiment_model=SENTIMENT_MODEL,
-            toxicity_model=TOXICITY_MODEL
-        )
-
-        logger.info("Downloading models from Hugging Face - takes 3-5 minutes...")
-        load_results = analyzer_instance.load_models()
-
-        logger.info("Model Loading Results:")
-        for model_name, loaded in load_results.items():
-            icon = "✅" if loaded else "❌"
-            logger.info(f"  {icon} {model_name}: {'loaded' if loaded else 'failed'}")
-
-        if analyzer_instance.is_ready:
-            # Only set global analyzer after fully loaded
-            global analyzer
-            analyzer = analyzer_instance
-            models_ready = True
-            models_loading = False
-            logger.info("✅ ALL MODELS LOADED - NLP Service fully ready for inference!")
-        else:
-            models_loading = False
-            models_error = "Some models failed to load"
-            logger.warning("⚠️ Some models failed to load")
-
-    except Exception as e:
-        models_loading = False
-        models_error = str(e)
-        logger.error(f"❌ Model loading failed: {str(e)}", exc_info=True)
-
-
-# ============================================================================
-# BACKGROUND ASYNC WRAPPER
-# ============================================================================
-
-async def load_models_in_background():
-    """
-    Async wrapper that runs blocking model loading in a thread pool.
-    run_in_executor = run blocking code without freezing async event loop.
-    This is the correct Python way to do this.
-    """
-    global models_loading
-    models_loading = True
-
-    loop = asyncio.get_event_loop()
-    logger.info("🔄 Scheduling model loading in background thread...")
-
-    # THIS IS THE KEY FIX
-    # run_in_executor puts _load_models_sync() in a thread
-    # event loop is NOT blocked
-    # uvicorn finishes startup immediately
-    # port opens immediately
-    # healthcheck passes immediately
-    await loop.run_in_executor(thread_pool, _load_models_sync)
-
-
-# ============================================================================
-# STARTUP EVENT
-# ============================================================================
-
-@app.on_event("startup")
-async def startup_event():
-    """
-    Server starts immediately.
-    Model loading scheduled in background thread.
-    Healthcheck passes right away.
-    """
-    logger.info("=" * 80)
-    logger.info(f"🚀 {APP_NAME} v{APP_VERSION} starting...")
-    logger.info(f"📍 Running on http://{HOST}:{PORT}")
-    logger.info(f"📚 Swagger docs: http://{HOST}:{PORT}/docs")
-    logger.info("✅ Server ready - models loading in background thread")
-    logger.info("=" * 80)
-
-    # Schedule background loading
-    # create_task returns immediately
-    # startup_event completes immediately
-    # uvicorn marks startup as complete
-    # port opens
-    # Railway healthcheck passes
-    asyncio.create_task(load_models_in_background())
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info(f"🛑 {APP_NAME} shutting down...")
-    thread_pool.shutdown(wait=False)
-    logger.info("✅ Shutdown complete")
-
-
-# ============================================================================
-# MAIN ENTRY POINT
+# MAIN
 # ============================================================================
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host=HOST,
-        port=PORT,
-        reload=False
-    )
+    uvicorn.run("app.main:app", host=HOST, port=PORT, reload=False)
+    
