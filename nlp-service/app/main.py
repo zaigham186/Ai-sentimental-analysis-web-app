@@ -1,7 +1,7 @@
 """
 Research NLP Service - Main FastAPI Application
 Fixed for FastAPI 0.141.1 using modern lifespan pattern
-
+"""
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, status
@@ -10,16 +10,13 @@ import os
 from dotenv import load_dotenv
 import logging
 import sys
-import asyncio
 import threading
 
-# UTF-8 output
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8')
 
-# Logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -27,7 +24,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Import schemas and services
 from app.schemas.analysis import (
     AnalysisRequest,
     AnalysisResponse,
@@ -35,10 +31,8 @@ from app.schemas.analysis import (
 )
 from app.services.analyzer import UnifiedAnalyzer
 
-# Load environment variables
 load_dotenv()
 
-# Configuration
 APP_NAME = os.getenv("APP_NAME", "Research NLP Service")
 APP_VERSION = os.getenv("APP_VERSION", "2.0.0")
 HOST = os.getenv("HOST", "0.0.0.0")
@@ -47,28 +41,17 @@ MAX_TEXT_LENGTH = int(os.getenv("MAX_TEXT_LENGTH", 5000))
 SENTIMENT_MODEL = os.getenv("SENTIMENT_MODEL", "cardiffnlp/twitter-xlm-roberta-base-sentiment")
 TOXICITY_MODEL = os.getenv("TOXICITY_MODEL", "multilingual")
 
-# Global state
-analyzer: UnifiedAnalyzer = None
+analyzer = None
 models_ready = False
 models_loading = False
 models_error = None
 
 
-# ============================================================================
-# BLOCKING MODEL LOADER - runs in a real OS thread
-# completely separate from asyncio event loop
-# ============================================================================
-
 def load_models_thread():
-    """
-    Runs in a real OS thread via threading.Thread
-    Completely separate from asyncio - cannot block event loop
-    Uvicorn starts immediately, port opens, healthcheck passes
-    Models load here in parallel
-    """
+    """Runs in a real OS thread. Cannot block event loop."""
     global analyzer, models_ready, models_loading, models_error
 
-    logger.info("🔄 Model loading thread started...")
+    logger.info("Thread started - loading NLP models...")
 
     try:
         instance = UnifiedAnalyzer(
@@ -76,82 +59,53 @@ def load_models_thread():
             toxicity_model=TOXICITY_MODEL
         )
 
-        logger.info("📥 Downloading models - this takes 3-5 minutes...")
+        logger.info("Downloading models - this takes 3-5 minutes...")
         load_results = instance.load_models()
 
-        logger.info("Model Loading Results:")
         for name, loaded in load_results.items():
-            icon = "✅" if loaded else "❌"
-            logger.info(f"  {icon} {name}: {'loaded' if loaded else 'failed'}")
+            icon = "OK" if loaded else "FAIL"
+            logger.info(f"  [{icon}] {name}")
 
         if instance.is_ready:
             analyzer = instance
             models_ready = True
             models_loading = False
-            logger.info("✅ ALL MODELS LOADED - Ready for inference!")
+            logger.info("ALL MODELS LOADED - Ready for inference!")
         else:
             models_loading = False
             models_error = "Some models failed to load"
-            logger.warning("⚠️ Some models failed to load")
+            logger.warning("Some models failed to load")
 
     except Exception as e:
         models_loading = False
         models_error = str(e)
-        logger.error(f"❌ Model loading failed: {str(e)}", exc_info=True)
+        logger.error(f"Model loading failed: {str(e)}", exc_info=True)
 
-
-# ============================================================================
-# LIFESPAN - correct pattern for FastAPI 0.100+
-# This replaces @app.on_event("startup")
-# ============================================================================
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Modern FastAPI lifespan context manager.
-    Code before yield = startup
-    Code after yield = shutdown
-    
-    Threading.Thread starts model loading completely outside asyncio.
-    Lifespan yields immediately.
-    Uvicorn sees startup complete.
-    Port opens.
-    Healthcheck passes.
-    """
+    """Modern FastAPI lifespan - starts thread then yields immediately."""
     global models_loading
 
-    logger.info("=" * 70)
-    logger.info(f"🚀 {APP_NAME} v{APP_VERSION} starting...")
-    logger.info(f"📍 Port: {PORT}")
-    logger.info(f"📚 Docs: http://{HOST}:{PORT}/docs")
-    logger.info("=" * 70)
+    logger.info("=" * 60)
+    logger.info(f"STARTING {APP_NAME} v{APP_VERSION}")
+    logger.info(f"Port: {PORT}")
+    logger.info("=" * 60)
 
-    # Start model loading in a REAL OS thread
-    # This is completely outside asyncio
-    # Cannot block event loop under any circumstances
     models_loading = True
     t = threading.Thread(target=load_models_thread, daemon=True)
     t.start()
-    logger.info("✅ Model loading thread started - server ready immediately")
+    logger.info("Model loading thread started - server ready NOW")
 
-    # yield = server is now running
-    # everything above runs at startup
-    # everything below runs at shutdown
     yield
 
-    # Shutdown
-    logger.info(f"🛑 {APP_NAME} shutting down...")
-    logger.info("✅ Shutdown complete")
+    logger.info(f"{APP_NAME} shutting down...")
 
-
-# ============================================================================
-# CREATE APP WITH LIFESPAN
-# ============================================================================
 
 app = FastAPI(
     title=APP_NAME,
     version=APP_VERSION,
-    lifespan=lifespan,      # <-- uses new lifespan pattern
+    lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json"
@@ -165,10 +119,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# ============================================================================
-# ENDPOINTS
-# ============================================================================
 
 @app.get("/")
 async def root():
@@ -184,9 +134,6 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    # Returns immediately always
-    # No waiting for models
-    # Railway healthcheck passes instantly
     return {
         "success": True,
         "status": "healthy",
@@ -224,6 +171,7 @@ async def get_models_info():
     }
 )
 def analyze_text(request: AnalysisRequest):
+    """Run NLP analysis on text."""
     if not models_ready or analyzer is None or not analyzer.is_ready:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -262,10 +210,6 @@ def analyze_text(request: AnalysisRequest):
             detail={"success": False, "error": "Internal server error"}
         )
 
-
-# ============================================================================
-# MAIN
-# ============================================================================
 
 if __name__ == "__main__":
     import uvicorn
