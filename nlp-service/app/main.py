@@ -1,8 +1,3 @@
-"""
-Research NLP Service - Main FastAPI Application
-Fixed for FastAPI 0.141.1 using modern lifespan pattern
-"""
-
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -48,34 +43,25 @@ models_error = None
 
 
 def load_models_thread():
-    """Runs in a real OS thread. Cannot block event loop."""
     global analyzer, models_ready, models_loading, models_error
-
     logger.info("Thread started - loading NLP models...")
-
     try:
         instance = UnifiedAnalyzer(
             sentiment_model=SENTIMENT_MODEL,
             toxicity_model=TOXICITY_MODEL
         )
-
-        logger.info("Downloading models - this takes 3-5 minutes...")
+        logger.info("Downloading models - takes 3-5 minutes...")
         load_results = instance.load_models()
-
         for name, loaded in load_results.items():
-            icon = "OK" if loaded else "FAIL"
-            logger.info(f"  [{icon}] {name}")
-
+            logger.info(f"  {'OK' if loaded else 'FAIL'} {name}")
         if instance.is_ready:
             analyzer = instance
             models_ready = True
             models_loading = False
-            logger.info("ALL MODELS LOADED - Ready for inference!")
+            logger.info("ALL MODELS LOADED - Ready!")
         else:
             models_loading = False
-            models_error = "Some models failed to load"
-            logger.warning("Some models failed to load")
-
+            models_error = "Some models failed"
     except Exception as e:
         models_loading = False
         models_error = str(e)
@@ -84,22 +70,14 @@ def load_models_thread():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Modern FastAPI lifespan - starts thread then yields immediately."""
     global models_loading
-
-    logger.info("=" * 60)
-    logger.info(f"STARTING {APP_NAME} v{APP_VERSION}")
-    logger.info(f"Port: {PORT}")
-    logger.info("=" * 60)
-
+    logger.info(f"STARTING {APP_NAME} v{APP_VERSION} on port {PORT}")
     models_loading = True
     t = threading.Thread(target=load_models_thread, daemon=True)
     t.start()
-    logger.info("Model loading thread started - server ready NOW")
-
+    logger.info("Thread started - server ready NOW")
     yield
-
-    logger.info(f"{APP_NAME} shutting down...")
+    logger.info("Shutting down...")
 
 
 app = FastAPI(
@@ -125,7 +103,6 @@ async def root():
     return {
         "success": True,
         "service": APP_NAME,
-        "version": APP_VERSION,
         "status": "healthy",
         "models_ready": models_ready,
         "models_loading": models_loading
@@ -149,8 +126,6 @@ async def get_models_info():
         return {
             "success": True,
             "status": "loading" if models_loading else "initializing",
-            "sentiment": SENTIMENT_MODEL,
-            "toxicity": TOXICITY_MODEL,
             "models_ready": models_ready
         }
     return {
@@ -161,28 +136,17 @@ async def get_models_info():
     }
 
 
-@app.post(
-    "/analyze",
-    response_model=AnalysisResponse,
-    responses={
-        400: {"model": ErrorResponse, "description": "Invalid input"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
-        503: {"model": ErrorResponse, "description": "Models not ready"}
-    }
-)
+@app.post("/analyze", response_model=AnalysisResponse)
 def analyze_text(request: AnalysisRequest):
-    """Run NLP analysis on text."""
     if not models_ready or analyzer is None or not analyzer.is_ready:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            status_code=503,
             detail={
                 "success": False,
-                "error": "Models still loading. Wait 3-5 minutes and try again.",
-                "models_ready": models_ready,
-                "models_loading": models_loading
+                "error": "Models still loading. Wait 3-5 minutes.",
+                "models_ready": models_ready
             }
         )
-
     try:
         result = analyzer.analyze(
             text=request.text,
@@ -199,16 +163,10 @@ def analyze_text(request: AnalysisRequest):
             metadata=result["metadata"]
         )
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"success": False, "error": str(e)}
-        )
+        raise HTTPException(status_code=400, detail={"success": False, "error": str(e)})
     except Exception as e:
         logger.error(f"Error: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"success": False, "error": "Internal server error"}
-        )
+        raise HTTPException(status_code=500, detail={"success": False, "error": "Internal server error"})
 
 
 if __name__ == "__main__":
