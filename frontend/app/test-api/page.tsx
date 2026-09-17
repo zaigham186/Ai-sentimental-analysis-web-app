@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+
 import { Button } from '@/components/ui/Button';
 import { Card, CardBody } from '@/components/ui/Card';
 
@@ -13,15 +14,27 @@ export default function TestAPIPage() {
   const [result, setResult] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
+  // Use the deployed Railway backend URL from the environment variable
+  const API_URL =
+    process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
   const testHealth = async () => {
     setLoading(true);
     setResult('Testing health endpoint...');
-    
+
     try {
-      const response = await fetch('http://localhost:5000/api/health', {
-        credentials: 'include'
+      const response = await fetch(`${API_URL}/api/health`, {
+        credentials: 'include',
       });
+
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          `HTTP ${response.status}: ${JSON.stringify(data)}`
+        );
+      }
+
       setResult('✅ SUCCESS!\n\n' + JSON.stringify(data, null, 2));
     } catch (error: any) {
       setResult('❌ ERROR!\n\n' + error.message);
@@ -33,22 +46,33 @@ export default function TestAPIPage() {
   const testConsent = async () => {
     setLoading(true);
     setResult('Testing consent endpoint...');
-    
+
     try {
-      const response = await fetch('http://localhost:5000/api/participants/consent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          consentGiven: true,
-          agreedToDataUse: true,
-          agreedToWithdrawalTerms: true,
-          electronicSignature: 'Test User'
-        })
-      });
+      const response = await fetch(
+        `${API_URL}/api/participants/consent`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            consentGiven: true,
+            agreedToDataUse: true,
+            agreedToWithdrawalTerms: true,
+            electronicSignature: 'Test User',
+          }),
+        }
+      );
+
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          `HTTP ${response.status}: ${JSON.stringify(data)}`
+        );
+      }
+
       setResult('✅ SUCCESS!\n\n' + JSON.stringify(data, null, 2));
     } catch (error: any) {
       setResult('❌ ERROR!\n\n' + error.message);
@@ -58,8 +82,11 @@ export default function TestAPIPage() {
   };
 
   const checkEnv = () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'NOT SET (using default)';
-    setResult(`Environment Check:\n\nNEXT_PUBLIC_API_URL = ${apiUrl}\n\nDefault: http://localhost:5000`);
+    setResult(
+      `Environment Check:\n\nNEXT_PUBLIC_API_URL = ${
+        process.env.NEXT_PUBLIC_API_URL || 'NOT SET'
+      }\n\nActual API URL being used = ${API_URL}`
+    );
   };
 
   return (
@@ -71,29 +98,31 @@ export default function TestAPIPage() {
 
         <Card className="mb-6">
           <CardBody>
-            <h2 className="text-xl font-semibold mb-4">Test Backend Connection</h2>
-            
+            <h2 className="text-xl font-semibold mb-4">
+              Test Backend Connection
+            </h2>
+
             <div className="space-y-3 mb-6">
-              <Button 
-                onClick={checkEnv} 
+              <Button
+                onClick={checkEnv}
                 disabled={loading}
                 variant="outline"
                 className="w-full"
               >
                 1. Check Environment Variables
               </Button>
-              
-              <Button 
-                onClick={testHealth} 
+
+              <Button
+                onClick={testHealth}
                 disabled={loading}
                 variant="outline"
                 className="w-full"
               >
                 2. Test Health Endpoint (GET /api/health)
               </Button>
-              
-              <Button 
-                onClick={testConsent} 
+
+              <Button
+                onClick={testConsent}
                 disabled={loading}
                 className="w-full"
               >
@@ -111,18 +140,42 @@ export default function TestAPIPage() {
 
         <Card>
           <CardBody>
-            <h3 className="text-lg font-semibold mb-3">Instructions:</h3>
+            <h3 className="text-lg font-semibold mb-3">
+              Instructions:
+            </h3>
+
             <ol className="list-decimal list-inside space-y-2 text-gray-700">
-              <li>Click button 1 to verify .env.local is loaded</li>
-              <li>Click button 2 to test if backend is reachable</li>
-              <li>Click button 3 to test actual consent submission</li>
-              <li>If all work, go back to <a href="/consent" className="text-blue-600 underline">/consent page</a></li>
+              <li>
+                Click button 1 to verify the API environment variable.
+              </li>
+
+              <li>
+                Click button 2 to test if the Railway backend is reachable.
+              </li>
+
+              <li>
+                Click button 3 to test the consent submission.
+              </li>
+
+              <li>
+                If all work, go back to{' '}
+                <a
+                  href="/consent"
+                  className="text-blue-600 underline"
+                >
+                  /consent page
+                </a>
+                .
+              </li>
             </ol>
           </CardBody>
         </Card>
 
         <div className="mt-6 text-center">
-          <a href="/consent" className="text-blue-600 hover:underline">
+          <a
+            href="/consent"
+            className="text-blue-600 hover:underline"
+          >
             ← Back to Consent Page
           </a>
         </div>
