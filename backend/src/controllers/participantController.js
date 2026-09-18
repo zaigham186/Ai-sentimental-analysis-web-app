@@ -32,12 +32,12 @@ const submitConsent = async (req, res) => {
 
     // Store in cookie (temporary until registration)
     const isSecure = (req.secure || req.headers['x-forwarded-proto'] === 'https') && config.nodeEnv === 'production';
-    res.cookie('pendingConsent', JSON.stringify(consentData), {
-      httpOnly: true,
-      secure: isSecure,
-      sameSite: 'lax',
-      maxAge: 30 * 60 * 1000 // 30 minutes
-    });
+   res.cookie('pendingConsent', JSON.stringify(consentData), {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'none',
+  maxAge: 30 * 60 * 1000
+});
 
     res.json({
       success: true,
@@ -131,12 +131,12 @@ const registerParticipant = async (req, res) => {
 
     // Create session
     const isSecure = (req.secure || req.headers['x-forwarded-proto'] === 'https') && config.nodeEnv === 'production';
-    res.cookie('participantSession', participant._id.toString(), {
-      httpOnly: true,
-      secure: isSecure,
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
+   res.cookie('participantSession', participant._id.toString(), {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'none',
+  maxAge: 7 * 24 * 60 * 60 * 1000
+});
 
     // Clear pending consent cookie
     res.clearCookie('pendingConsent', { sameSite: 'lax' });
@@ -286,8 +286,17 @@ const checkSession = async (req, res) => {
  */
 const logout = async (req, res) => {
   try {
-    res.clearCookie('participantSession', { sameSite: 'lax' });
-    res.clearCookie('pendingConsent', { sameSite: 'lax' });
+   res.clearCookie('participantSession', {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'none'
+});
+
+res.clearCookie('pendingConsent', {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'none'
+});
 
     res.json({
       success: true,

@@ -24,7 +24,11 @@ const authenticateParticipant = async (req, res, next) => {
     }
 
     if (!mongoose.Types.ObjectId.isValid(participantId)) {
-      res.clearCookie('participantSession', { sameSite: 'lax' });
+      res.clearCookie('participantSession', {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'none'
+});
       return res.status(401).json({
         success: false,
         message: 'Invalid session'
