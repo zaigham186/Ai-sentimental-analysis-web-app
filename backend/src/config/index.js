@@ -16,8 +16,8 @@ const config = {
   // Session
   sessionSecret: process.env.SESSION_SECRET || 'development-secret-change-in-production',
 
-  // CORS
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  // CORS - Support both FRONTEND_URL and CORS_ORIGIN for backwards compatibility
+  frontendUrl: process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3000',
 
   // Rate Limiting
   rateLimitWindowMs: 15 * 60 * 1000, // 15 minutes

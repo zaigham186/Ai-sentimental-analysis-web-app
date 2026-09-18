@@ -2,11 +2,26 @@ const { Participant, AuditLog } = require('../models');
 const config = require('../config');
 
 /**
- * Participant Controller
+ * Participant Controller - PRODUCTION FIXED
  * Handles participant registration, consent, and session management
  * CRITICAL: Never expose MongoDB _id to participants
- * UPDATE: Participants now select their own condition (anonymous/identifiable)
+ * FIXED: Cross-domain cookie support for production (Vercel + Railway)
  */
+
+/**
+ * Helper function to get cookie options based on environment
+ */
+const getCookieOptions = (req, maxAge) => {
+  const isProduction = config.nodeEnv === 'production';
+  const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+  
+  return {
+    httpOnly: true,
+    secure: isProduction ? true : isSecure, // Always secure in production
+    sameSite: isProduction ? 'none' : 'lax', // 'none' required for cross-domain in production
+    maxAge: maxAge
+  };
+};
 
 /**
  * Submit consent
@@ -31,13 +46,7 @@ const submitConsent = async (req, res) => {
     };
 
     // Store in cookie (temporary until registration)
-    const isSecure = (req.secure || req.headers['x-forwarded-proto'] === 'https') && config.nodeEnv === 'production';
-   res.cookie('pendingConsent', JSON.stringify(consentData), {
-  httpOnly: true,
-  secure: true,
-  sameSite: 'none',
-  maxAge: 30 * 60 * 1000
-});
+    res.cookie('pendingConsent', JSON.stringify(consentData), getCookieOptions(req, 30 * 60 * 1000)); // 30 minutes
 
     res.json({
       success: true,
@@ -129,17 +138,15 @@ const registerParticipant = async (req, res) => {
       status: 'active'
     });
 
-    // Create session
-    const isSecure = (req.secure || req.headers['x-forwarded-proto'] === 'https') && config.nodeEnv === 'production';
-   res.cookie('participantSession', participant._id.toString(), {
-  httpOnly: true,
-  secure: true,
-  sameSite: 'none',
-  maxAge: 7 * 24 * 60 * 60 * 1000
-});
+    // Create session with production-ready cookie settings
+    res.cookie('participantSession', participant._id.toString(), getCookieOptions(req, 7 * 24 * 60 * 60 * 1000)); // 7 days
 
     // Clear pending consent cookie
-    res.clearCookie('pendingConsent', { sameSite: 'lax' });
+    res.clearCookie('pendingConsent', {
+      httpOnly: true,
+      secure: config.nodeEnv === 'production',
+      sameSite: config.nodeEnv === 'production' ? 'none' : 'lax'
+    });
 
     // Log registration
     await AuditLog.logAction({
@@ -248,7 +255,11 @@ const checkSession = async (req, res) => {
 
     if (!participant || participant.status === 'withdrawn') {
       // Clear invalid session
-      res.clearCookie('participantSession', { sameSite: 'lax' });
+      res.clearCookie('participantSession', {
+        httpOnly: true,
+        secure: config.nodeEnv === 'production',
+        sameSite: config.nodeEnv === 'production' ? 'none' : 'lax'
+      });
       return res.json({
         success: true,
         data: {
@@ -286,17 +297,16 @@ const checkSession = async (req, res) => {
  */
 const logout = async (req, res) => {
   try {
-   res.clearCookie('participantSession', {
-  httpOnly: true,
-  secure: true,
-  sameSite: 'none'
-});
-
-res.clearCookie('pendingConsent', {
-  httpOnly: true,
-  secure: true,
-  sameSite: 'none'
-});
+    res.clearCookie('participantSession', {
+      httpOnly: true,
+      secure: config.nodeEnv === 'production',
+      sameSite: config.nodeEnv === 'production' ? 'none' : 'lax'
+    });
+    res.clearCookie('pendingConsent', {
+      httpOnly: true,
+      secure: config.nodeEnv === 'production',
+      sameSite: config.nodeEnv === 'production' ? 'none' : 'lax'
+    });
 
     res.json({
       success: true,
