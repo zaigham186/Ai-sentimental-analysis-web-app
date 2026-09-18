@@ -72,7 +72,7 @@ Copy each output and paste as JWT_SECRET and SESSION_SECRET.
 ## ✅ STEP 4: Update Vercel Environment Variables
 
 Go to Vercel dashboard → Your frontend project → **Settings** → **Environment Variables**
-
+               
 **Update these:**
 
 | Variable | Value | Environment |
