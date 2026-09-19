@@ -17,6 +17,7 @@ const helmetMiddleware = helmet({
     },
   },
   crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
 });
 
 // Rate limiting

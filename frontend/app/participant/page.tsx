@@ -31,10 +31,9 @@ export default function ParticipantPage() {
       const response = await api.participant.getProfile();
       setParticipant(response.data);
     } catch (err: any) {
-      if (err.message === 'Authentication required') {
-        // Not authenticated - redirect to consent
-        router.push('/consent');
-      } else {
+      if (err.message === 'Authentication required' || err.status === 401) {
+  setError('Session expired. Please go back and complete consent again.');
+     }else {
         setError(err.message || 'Failed to load profile');
       }
     } finally {
