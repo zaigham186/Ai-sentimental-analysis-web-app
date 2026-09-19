@@ -80,6 +80,10 @@ const startServer = async () => {
 
     // Start listening
     const server = app.listen(config.port, () => {
+      const healthCheckUrl = config.nodeEnv === 'production' 
+        ? `https://ai-sentimental-analysis-web-app-production.up.railway.app/api/health`
+        : `http://localhost:${config.port}/api/health`;
+      
       console.log('');
       console.log('='.repeat(50));
       console.log('  Cyberbullying Research Platform - Backend API');
@@ -87,7 +91,7 @@ const startServer = async () => {
       console.log(`✓ Server running on port ${config.port}`);
       console.log(`✓ Environment: ${config.nodeEnv}`);
       console.log(`✓ Frontend URL: ${config.frontendUrl}`);
-      console.log(`✓ Health check: http://localhost:${config.port}/api/health`);
+      console.log(`✓ Health check: ${healthCheckUrl}`);
       console.log('='.repeat(50));
       console.log('');
     });
