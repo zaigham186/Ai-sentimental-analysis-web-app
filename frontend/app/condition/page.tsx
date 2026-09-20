@@ -35,10 +35,13 @@ export default function ConditionPage() {
       const cached = authStorage.getCachedParticipant();
       if (cached && cached.condition) {
         setConditionInfo({
-          condition: cached.condition,
+          condition: cached.condition === 'identifiable' ? 'identifiable' : 'anonymous',
           assignedAt: cached.assignedAt || new Date().toISOString(),
-          assignmentMethod: 'user-selected',
-          displayName: cached.condition === 'anonymous' ? 'Anonymous User' : cached.name
+          assignmentVersion: '1.0',
+          displayName: cached.condition === 'anonymous' ? 'Anonymous User' : (cached.name || 'Participant'),
+          notice: cached.condition === 'anonymous'
+            ? 'You are participating under the Anonymous condition. Your responses will be displayed with an anonymous identifier.'
+            : 'You are participating under the Identifiable condition. Your responses will be displayed with your name.'
         });
         return;
       }
