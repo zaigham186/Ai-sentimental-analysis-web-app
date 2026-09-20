@@ -23,17 +23,110 @@ const getApiBaseUrl = () => {
 };
 
 /**
+ * Cross-domain authentication storage helpers
+ * Stores session tokens and pending consent in localStorage & sessionStorage
+ * Guarantees persistence even when browsers block third-party cookies across domains
+ */
+export const authStorage = {
+  getParticipantToken: (): string | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return localStorage.getItem('participantSession') || sessionStorage.getItem('participantSession');
+    } catch {
+      return null;
+    }
+  },
+  setParticipantToken: (token: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('participantSession', token);
+      sessionStorage.setItem('participantSession', token);
+    } catch {}
+  },
+  clearParticipantToken: () => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem('participantSession');
+      sessionStorage.removeItem('participantSession');
+      localStorage.removeItem('pendingConsent');
+      sessionStorage.removeItem('pendingConsent');
+    } catch {}
+  },
+  getPendingConsent: (): string | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return localStorage.getItem('pendingConsent') || sessionStorage.getItem('pendingConsent');
+    } catch {
+      return null;
+    }
+  },
+  setPendingConsent: (data: any) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const val = typeof data === 'string' ? data : JSON.stringify(data);
+      localStorage.setItem('pendingConsent', val);
+      sessionStorage.setItem('pendingConsent', val);
+    } catch {}
+  },
+  getAdminToken: (): string | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return localStorage.getItem('adminSession') || sessionStorage.getItem('adminSession');
+    } catch {
+      return null;
+    }
+  },
+  setAdminToken: (token: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('adminSession', token);
+      sessionStorage.setItem('adminSession', token);
+    } catch {}
+  },
+  clearAdminToken: () => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem('adminSession');
+      sessionStorage.removeItem('adminSession');
+    } catch {}
+  }
+};
+
+/**
  * Base fetch wrapper with error handling
  */
 async function fetchAPI(endpoint: string, options: RequestOptions = {}) {
   const url = `${getApiBaseUrl()}${endpoint}`;
 
+  const requestHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> || {}),
+  };
+
+  // Cross-domain token & consent headers injection
+  if (typeof window !== 'undefined') {
+    if (endpoint.startsWith('/api/admin')) {
+      const adminToken = authStorage.getAdminToken();
+      if (adminToken && !requestHeaders['Authorization']) {
+        requestHeaders['Authorization'] = `Bearer ${adminToken}`;
+        requestHeaders['x-admin-session'] = adminToken;
+      }
+    } else {
+      const participantToken = authStorage.getParticipantToken();
+      if (participantToken && !requestHeaders['Authorization']) {
+        requestHeaders['Authorization'] = `Bearer ${participantToken}`;
+        requestHeaders['x-participant-session'] = participantToken;
+      }
+      const pendingConsent = authStorage.getPendingConsent();
+      if (pendingConsent && !requestHeaders['x-pending-consent']) {
+        requestHeaders['x-pending-consent'] = pendingConsent;
+      }
+    }
+  }
+
   const config: RequestInit = {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers: requestHeaders,
     credentials: 'include', // Include cookies for session management
   };
 
@@ -58,7 +151,10 @@ async function fetchAPI(endpoint: string, options: RequestOptions = {}) {
 
     // Handle error responses
     if (!response.ok) {
-      throw new Error(data.message || `Request failed with status ${response.status}`);
+      const error: any = new Error(data.message || `Request failed with status ${response.status}`);
+      error.status = response.status;
+      error.data = data;
+      throw error;
     }
 
     return data;
@@ -81,15 +177,22 @@ export const api = {
   // Participant endpoints
   participant: {
     // Submit consent
-    submitConsent: (data: {
+    submitConsent: async (data: {
       consentGiven: boolean;
       agreedToDataUse: boolean;
       agreedToWithdrawalTerms: boolean;
       electronicSignature: string;
-    }) => fetchAPI('/api/participants/consent', { method: 'POST', body: data }),
+    }) => {
+      authStorage.setPendingConsent(data);
+      const res = await fetchAPI('/api/participants/consent', { method: 'POST', body: data });
+      if (res.data?.consentData) {
+        authStorage.setPendingConsent(res.data.consentData);
+      }
+      return res;
+    },
 
     // Register participant
-    register: (data: {
+    register: async (data: {
       name: string;
       username: string;
       age: number;
@@ -97,7 +200,23 @@ export const api = {
       university: string;
       department: string;
       condition: string;
-    }) => fetchAPI('/api/participants/register', { method: 'POST', body: data }),
+    }) => {
+      let consentData = null;
+      const storedConsent = authStorage.getPendingConsent();
+      if (storedConsent) {
+        try {
+          consentData = JSON.parse(storedConsent);
+        } catch {}
+      }
+      const res = await fetchAPI('/api/participants/register', {
+        method: 'POST',
+        body: { ...data, consentData }
+      });
+      if (res.data?.sessionToken) {
+        authStorage.setParticipantToken(res.data.sessionToken);
+      }
+      return res;
+    },
 
     // Get current participant profile
     getProfile: () => fetchAPI('/api/participants/me'),
@@ -106,7 +225,13 @@ export const api = {
     checkSession: () => fetchAPI('/api/participants/session'),
 
     // Logout
-    logout: () => fetchAPI('/api/participants/logout', { method: 'POST' })
+    logout: async () => {
+      try {
+        return await fetchAPI('/api/participants/logout', { method: 'POST' });
+      } finally {
+        authStorage.clearParticipantToken();
+      }
+    }
   },
 
   // Condition endpoints (Phase 4)
@@ -142,13 +267,25 @@ export const api = {
   // Admin endpoints (Phase 8)
   admin: {
     // Login
-    login: (data: {
+    login: async (data: {
       username: string;
       password: string;
-    }) => fetchAPI('/api/admin/login', { method: 'POST', body: data }),
+    }) => {
+      const res = await fetchAPI('/api/admin/login', { method: 'POST', body: data });
+      if (res.data?.sessionToken || res.data?.id) {
+        authStorage.setAdminToken(res.data.sessionToken || res.data.id);
+      }
+      return res;
+    },
 
     // Logout
-    logout: () => fetchAPI('/api/admin/logout', { method: 'POST' }),
+    logout: async () => {
+      try {
+        return await fetchAPI('/api/admin/logout', { method: 'POST' });
+      } finally {
+        authStorage.clearAdminToken();
+      }
+    },
 
     // Get current admin
     me: () => fetchAPI('/api/admin/me'),

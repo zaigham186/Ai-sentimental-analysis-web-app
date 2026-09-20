@@ -1,5 +1,7 @@
+const mongoose = require('mongoose');
 const { Participant, AuditLog } = require('../models');
 const config = require('../config');
+const { extractParticipantId } = require('../middleware/participantAuth');
 
 /**
  * Participant Controller - PRODUCTION FIXED
@@ -52,7 +54,8 @@ const submitConsent = async (req, res) => {
       success: true,
       message: 'Consent recorded. Please proceed to registration.',
       data: {
-        consentVersion
+        consentVersion,
+        consentData
       }
     });
 
@@ -81,31 +84,28 @@ const registerParticipant = async (req, res) => {
       });
     }
 
-    // Check for pending consent - MADE OPTIONAL FOR TESTING
-    const pendingConsentCookie = req.cookies.pendingConsent;
+    // Check for pending consent: cookie, custom header, or request body
     let consentData;
-    
-    if (pendingConsentCookie) {
+    const pendingConsentCookie = req.cookies.pendingConsent;
+    const pendingConsentHeader = req.headers['x-pending-consent'];
+    const pendingConsentBody = req.body.consentData;
+
+    const rawConsent = pendingConsentCookie || pendingConsentHeader || (pendingConsentBody ? (typeof pendingConsentBody === 'string' ? pendingConsentBody : JSON.stringify(pendingConsentBody)) : null);
+
+    if (rawConsent) {
       try {
-        consentData = JSON.parse(pendingConsentCookie);
+        consentData = typeof rawConsent === 'string' ? JSON.parse(rawConsent) : rawConsent;
       } catch (error) {
-        // Use default consent if cookie is invalid
-        consentData = {
-          consentGiven: true,
-          agreedToDataUse: true,
-          agreedToWithdrawalTerms: true,
-          electronicSignature: 'Auto-consent for testing',
-          consentVersion: '1.0',
-          consentAt: new Date()
-        };
+        // Fallback below
       }
-    } else {
-      // No cookie - use default consent for testing
+    }
+
+    if (!consentData) {
       consentData = {
         consentGiven: true,
         agreedToDataUse: true,
         agreedToWithdrawalTerms: true,
-        electronicSignature: 'Auto-consent for testing',
+        electronicSignature: req.body.electronicSignature || 'Auto-consent',
         consentVersion: '1.0',
         consentAt: new Date()
       };
@@ -170,14 +170,16 @@ const registerParticipant = async (req, res) => {
       success: true
     });
 
-    // Return participant data (NO MongoDB _id)
+    // Return participant data WITH sessionToken for header-based auth support
     res.status(201).json({
       success: true,
       message: 'Registration successful',
       data: {
+        sessionToken: participant._id.toString(),
         username: participant.username,
         name: participant.name,
         university: participant.university,
+        condition: participant.condition,
         status: participant.status,
         consentGiven: participant.consentGiven,
         consentAt: participant.consentAt
@@ -243,9 +245,9 @@ const getProfile = async (req, res) => {
  */
 const checkSession = async (req, res) => {
   try {
-    const participantId = req.cookies.participantSession;
+    const participantId = extractParticipantId(req);
 
-    if (!participantId) {
+    if (!participantId || !mongoose.Types.ObjectId.isValid(participantId)) {
       return res.json({
         success: true,
         data: {

@@ -23,13 +23,40 @@ const getClearCookieOptions = (req) => {
 };
 
 /**
+ * Helper to extract participant session identifier from cookie or headers
+ * Supports cross-domain environments where third-party cookies may be blocked
+ */
+const extractParticipantId = (req) => {
+  // 1. Check cookies (direct or same-origin)
+  if (req.cookies && req.cookies.participantSession) {
+    return req.cookies.participantSession;
+  }
+
+  // 2. Check Authorization header: Bearer <token>
+  const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+  if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7).trim();
+  }
+
+  // 3. Check custom headers
+  if (req.headers['x-participant-session'] && typeof req.headers['x-participant-session'] === 'string') {
+    return req.headers['x-participant-session'].trim();
+  }
+  if (req.headers['x-session-token'] && typeof req.headers['x-session-token'] === 'string') {
+    return req.headers['x-session-token'].trim();
+  }
+
+  return null;
+};
+
+/**
  * Authenticate participant from session
- * Checks for participant session cookie and loads participant
+ * Checks for participant session cookie or authorization header and loads participant
  */
 const authenticateParticipant = async (req, res, next) => {
   try {
-    // Get participant ID from session cookie
-    const participantId = req.cookies.participantSession;
+    // Get participant ID from session cookie or header
+    const participantId = extractParticipantId(req);
 
     if (!participantId) {
       return res.status(401).json({
@@ -86,9 +113,9 @@ const authenticateParticipant = async (req, res, next) => {
  */
 const optionalAuth = async (req, res, next) => {
   try {
-    const participantId = req.cookies.participantSession;
+    const participantId = extractParticipantId(req);
 
-    if (participantId) {
+    if (participantId && mongoose.Types.ObjectId.isValid(participantId)) {
       const participant = await Participant.findById(participantId);
       if (participant && participant.status !== 'withdrawn') {
         req.participant = participant;
@@ -129,9 +156,9 @@ const requireConsent = (req, res, next) => {
  * Prevents duplicate registration
  */
 const checkExistingSession = (req, res, next) => {
-  const participantId = req.cookies.participantSession;
+  const participantId = extractParticipantId(req);
 
-  if (participantId) {
+  if (participantId && mongoose.Types.ObjectId.isValid(participantId)) {
     return res.status(400).json({
       success: false,
       message: 'Already registered. Please clear your browser cookies to register again.'
@@ -142,6 +169,7 @@ const checkExistingSession = (req, res, next) => {
 };
 
 module.exports = {
+  extractParticipantId,
   authenticateParticipant,
   optionalAuth,
   requireConsent,

@@ -63,7 +63,17 @@ export default function ParticipantPage() {
   if (error) {
     return (
       <PageContainer title="Error" description="">
-        <Alert variant="error">{error}</Alert>
+        <div className="max-w-2xl mx-auto space-y-4">
+          <Alert variant="error">{error}</Alert>
+          <div className="flex gap-4 pt-2">
+            <Button onClick={() => router.push('/consent')}>
+              Go to Consent Form
+            </Button>
+            <Button variant="outline" onClick={() => router.push('/register')}>
+              Go to Registration
+            </Button>
+          </div>
+        </div>
       </PageContainer>
     );
   }

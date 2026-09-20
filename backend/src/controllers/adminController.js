@@ -87,6 +87,7 @@ const login = async (req, res) => {
       success: true,
       message: 'Login successful',
       data: {
+        sessionToken: admin._id.toString(),
         id: admin._id,
         username: admin.username,
         email: admin.email,

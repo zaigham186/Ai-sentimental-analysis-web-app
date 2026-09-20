@@ -8,13 +8,30 @@ const { Admin } = require('../models');
  */
 
 /**
+ * Helper to extract admin session identifier from cookie or headers
+ */
+const extractAdminId = (req) => {
+  if (req.cookies && req.cookies.adminSession) {
+    return req.cookies.adminSession;
+  }
+  const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+  if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7).trim();
+  }
+  if (req.headers['x-admin-session'] && typeof req.headers['x-admin-session'] === 'string') {
+    return req.headers['x-admin-session'].trim();
+  }
+  return null;
+};
+
+/**
  * Authenticate admin from session
- * Checks for admin session cookie and loads admin
+ * Checks for admin session cookie or header and loads admin
  */
 const authenticateAdmin = async (req, res, next) => {
   try {
-    // Get admin ID from session cookie
-    const adminId = req.cookies.adminSession;
+    // Get admin ID from session cookie or header
+    const adminId = extractAdminId(req);
 
     if (!adminId) {
       return res.status(401).json({
@@ -184,7 +201,7 @@ const requirePermission = (permission) => {
  * Prevents duplicate login
  */
 const checkExistingAdminSession = (req, res, next) => {
-  const adminId = req.cookies.adminSession;
+  const adminId = extractAdminId(req);
 
   if (adminId && mongoose.Types.ObjectId.isValid(adminId)) {
     return res.status(400).json({
@@ -197,6 +214,7 @@ const checkExistingAdminSession = (req, res, next) => {
 };
 
 module.exports = {
+  extractAdminId,
   authenticateAdmin,
   requireAdmin,
   requireResearcher,

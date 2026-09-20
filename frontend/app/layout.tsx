@@ -20,16 +20,25 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              // Suppress MetaMask connection errors
+              // Suppress non-critical browser extension & autoplay errors
               window.addEventListener('error', function(e) {
-                if (e.message && e.message.includes('MetaMask')) {
+                if (e.message && (
+                  e.message.includes('MetaMask') ||
+                  e.message.includes('The play() request was interrupted') ||
+                  e.message.includes('play()')
+                )) {
                   e.preventDefault();
                   e.stopPropagation();
                   return false;
                 }
               });
               window.addEventListener('unhandledrejection', function(e) {
-                if (e.reason && e.reason.message && e.reason.message.includes('MetaMask')) {
+                var msg = e.reason && (e.reason.message || String(e.reason));
+                if (msg && (
+                  msg.includes('MetaMask') ||
+                  msg.includes('The play() request was interrupted') ||
+                  msg.includes('play()')
+                )) {
                   e.preventDefault();
                   e.stopPropagation();
                   return false;

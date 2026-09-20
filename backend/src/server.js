@@ -21,32 +21,49 @@ app.set('trust proxy', 1);
 // Security middleware
 app.use(helmetMiddleware);
 
-// CORS configuration - Support localhost and 127.0.0.1 across ports
+// CORS configuration - Support localhost across ports, Vercel deployments, and production URLs
 const allowedOrigins = [
   config.frontendUrl,
+  'https://ai-sentimental-analysis-web-app-fro.vercel.app',
   'http://localhost:3000',
   'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
   'http://127.0.0.1:3000',
-  'http://127.0.0.1:3001'
+  'http://127.0.0.1:3001',
+  'http://127.0.0.1:3002',
+  'http://127.0.0.1:3003'
 ];
 
-app.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps, curl, server-to-server)
     if (!origin) return callback(null, true);
     if (
       allowedOrigins.includes(origin) ||
       origin.startsWith('http://localhost:') ||
-      origin.startsWith('http://127.0.0.1:')
+      origin.startsWith('http://127.0.0.1:') ||
+      origin.endsWith('.vercel.app')
     ) {
       return callback(null, true);
     }
     return callback(new Error(`Origin ${origin} not allowed by CORS`));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'x-participant-session',
+    'x-admin-session',
+    'x-pending-consent',
+    'x-session-token'
+  ],
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Body parsing
 app.use(express.json({ limit: config.maxRequestBodySize }));
