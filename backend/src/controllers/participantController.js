@@ -141,11 +141,14 @@ const registerParticipant = async (req, res) => {
     // Create session with production-ready cookie settings
     res.cookie('participantSession', participant._id.toString(), getCookieOptions(req, 7 * 24 * 60 * 60 * 1000)); // 7 days
 
-    // Clear pending consent cookie
+    // Clear pending consent cookie with production-ready options
+    const isProduction = config.nodeEnv === 'production';
+    const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+    
     res.clearCookie('pendingConsent', {
       httpOnly: true,
-      secure: config.nodeEnv === 'production',
-      sameSite: config.nodeEnv === 'production' ? 'none' : 'lax'
+      secure: isProduction ? true : isSecure,
+      sameSite: isProduction ? 'none' : 'lax'
     });
 
     // Log registration
@@ -254,11 +257,14 @@ const checkSession = async (req, res) => {
     const participant = await Participant.findById(participantId);
 
     if (!participant || participant.status === 'withdrawn') {
-      // Clear invalid session
+      // Clear invalid session with production-ready options
+      const isProduction = config.nodeEnv === 'production';
+      const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+      
       res.clearCookie('participantSession', {
         httpOnly: true,
-        secure: config.nodeEnv === 'production',
-        sameSite: config.nodeEnv === 'production' ? 'none' : 'lax'
+        secure: isProduction ? true : isSecure,
+        sameSite: isProduction ? 'none' : 'lax'
       });
       return res.json({
         success: true,
@@ -297,16 +303,17 @@ const checkSession = async (req, res) => {
  */
 const logout = async (req, res) => {
   try {
-    res.clearCookie('participantSession', {
+    const isProduction = config.nodeEnv === 'production';
+    const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+    
+    const clearOptions = {
       httpOnly: true,
-      secure: config.nodeEnv === 'production',
-      sameSite: config.nodeEnv === 'production' ? 'none' : 'lax'
-    });
-    res.clearCookie('pendingConsent', {
-      httpOnly: true,
-      secure: config.nodeEnv === 'production',
-      sameSite: config.nodeEnv === 'production' ? 'none' : 'lax'
-    });
+      secure: isProduction ? true : isSecure,
+      sameSite: isProduction ? 'none' : 'lax'
+    };
+
+    res.clearCookie('participantSession', clearOptions);
+    res.clearCookie('pendingConsent', clearOptions);
 
     res.json({
       success: true,

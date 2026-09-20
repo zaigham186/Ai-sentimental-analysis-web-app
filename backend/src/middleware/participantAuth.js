@@ -1,11 +1,26 @@
 const mongoose = require('mongoose');
 const { Participant } = require('../models');
+const config = require('../config');
 
 /**
  * Participant Authentication Middleware
  * Verifies participant session and attaches participant to request
  * CRITICAL: All participant identity derived from session, never from request body
  */
+
+/**
+ * Helper function to get cookie clear options based on environment
+ */
+const getClearCookieOptions = (req) => {
+  const isProduction = config.nodeEnv === 'production';
+  const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+  
+  return {
+    httpOnly: true,
+    secure: isProduction ? true : isSecure,
+    sameSite: isProduction ? 'none' : 'lax'
+  };
+};
 
 /**
  * Authenticate participant from session
@@ -24,11 +39,7 @@ const authenticateParticipant = async (req, res, next) => {
     }
 
     if (!mongoose.Types.ObjectId.isValid(participantId)) {
-      res.clearCookie('participantSession', {
-  httpOnly: true,
-  secure: true,
-  sameSite: 'none'
-});
+      res.clearCookie('participantSession', getClearCookieOptions(req));
       return res.status(401).json({
         success: false,
         message: 'Invalid session'
@@ -40,7 +51,7 @@ const authenticateParticipant = async (req, res, next) => {
 
     if (!participant) {
       // Invalid session - clear cookie
-      res.clearCookie('participantSession', { sameSite: 'lax' });
+      res.clearCookie('participantSession', getClearCookieOptions(req));
       return res.status(401).json({
         success: false,
         message: 'Invalid session'
