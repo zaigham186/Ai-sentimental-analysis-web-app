@@ -7,7 +7,7 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { api } from '@/lib/api';
+import { api, authStorage } from '@/lib/api';
 import type { ConditionInfo } from '@/types';
 
 /**
@@ -32,6 +32,17 @@ export default function ConditionPage() {
       const response = await api.condition.getInfo();
       setConditionInfo(response.data);
     } catch (err: any) {
+      const cached = authStorage.getCachedParticipant();
+      if (cached && cached.condition) {
+        setConditionInfo({
+          condition: cached.condition,
+          assignedAt: cached.assignedAt || new Date().toISOString(),
+          assignmentMethod: 'user-selected',
+          displayName: cached.condition === 'anonymous' ? 'Anonymous User' : cached.name
+        });
+        return;
+      }
+
       if (err.message === 'Authentication required') {
         router.push('/consent');
       } else {

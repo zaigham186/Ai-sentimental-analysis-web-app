@@ -7,7 +7,7 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { api } from '@/lib/api';
+import { api, authStorage } from '@/lib/api';
 import type { Participant } from '@/types';
 
 /**
@@ -30,10 +30,18 @@ export default function ParticipantPage() {
     try {
       const response = await api.participant.getProfile();
       setParticipant(response.data);
+      authStorage.setCachedParticipant(response.data);
     } catch (err: any) {
+      // Resilient fallback to cached registration profile
+      const cached = authStorage.getCachedParticipant();
+      if (cached && (cached.name || cached.username)) {
+        setParticipant(cached);
+        return;
+      }
+
       if (err.message === 'Authentication required' || err.status === 401) {
-  setError('Session expired. Please go back and complete consent again.');
-     }else {
+        setError('Session expired. Please go back and complete consent again.');
+      } else {
         setError(err.message || 'Failed to load profile');
       }
     } finally {
@@ -44,9 +52,12 @@ export default function ParticipantPage() {
   const handleLogout = async () => {
     try {
       await api.participant.logout();
-      router.push('/');
     } catch (err) {
       console.error('Logout error:', err);
+    } finally {
+      authStorage.clearParticipantToken();
+      authStorage.clearCachedParticipant();
+      router.push('/');
     }
   };
 

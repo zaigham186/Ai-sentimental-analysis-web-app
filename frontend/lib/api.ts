@@ -14,12 +14,12 @@ interface RequestOptions extends RequestInit {
  */
 const getApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    if (isLocalhost && API_URL.includes('localhost')) {
-      return `http://${window.location.hostname}:5000`;
-    }
+    // In browser: use relative URL '' so requests go to the same origin (Vercel or Next.js dev server).
+    // Next.js rewrites proxy /api/* to Railway backend.
+    // This turns all cookies into first-party cookies and eliminates cross-origin blocking!
+    return '';
   }
-  return API_URL;
+  return API_URL.replace(/\/$/, '');
 };
 
 /**
@@ -50,6 +50,32 @@ export const authStorage = {
       sessionStorage.removeItem('participantSession');
       localStorage.removeItem('pendingConsent');
       sessionStorage.removeItem('pendingConsent');
+      localStorage.removeItem('participantData');
+      sessionStorage.removeItem('participantData');
+    } catch {}
+  },
+  getCachedParticipant: (): any | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const data = localStorage.getItem('participantData') || sessionStorage.getItem('participantData');
+      return data ? JSON.parse(data) : null;
+    } catch {
+      return null;
+    }
+  },
+  setCachedParticipant: (data: any) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const val = typeof data === 'string' ? data : JSON.stringify(data);
+      localStorage.setItem('participantData', val);
+      sessionStorage.setItem('participantData', val);
+    } catch {}
+  },
+  clearCachedParticipant: () => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem('participantData');
+      sessionStorage.removeItem('participantData');
     } catch {}
   },
   getPendingConsent: (): string | null => {

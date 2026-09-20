@@ -11,7 +11,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { api } from '@/lib/api';
+import { api, authStorage } from '@/lib/api';
 
 /**
  * Registration Page
@@ -74,7 +74,7 @@ export default function RegisterPage() {
     setError(null);
 
     try {
-      await api.participant.register({
+      const response = await api.participant.register({
         name: data.name,
         username: data.username.toLowerCase(),
         age: data.age,
@@ -82,6 +82,20 @@ export default function RegisterPage() {
         university: data.university,
         department: data.department,
         condition: data.condition
+      });
+
+      // Cache participant profile for resilient cross-domain dashboard rendering
+      authStorage.setCachedParticipant({
+        name: data.name,
+        username: data.username.toLowerCase(),
+        age: data.age,
+        gender: data.gender,
+        university: data.university,
+        department: data.department,
+        condition: data.condition,
+        status: response?.data?.status || 'active',
+        consentGiven: true,
+        consentAt: new Date().toISOString()
       });
 
       // Registration successful - redirect to participant dashboard
