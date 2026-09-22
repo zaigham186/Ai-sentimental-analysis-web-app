@@ -344,3 +344,17 @@ def test_analyze_aggressive_cyberbullying_example():
         assert cb["classification"] == "cyberbullying"
         assert "PERSONAL_TARGETING_DETECTED" in cb["reason_codes"]
 
+
+def test_analyze_roman_urdu_dimension():
+    """Test that POST /analyze returns roman_urdu dimension when models ready"""
+    response = client.post("/analyze", json={"text": "Aray bakwaas baatein mat kar lol"})
+    
+    if response.status_code == 200:
+        data = response.json()
+        assert "roman_urdu" in data
+        ru = data["roman_urdu"]
+        if ru:
+            assert "is_abusive" in ru
+            assert "abuse_probability" in ru
+            assert "label" in ru
+

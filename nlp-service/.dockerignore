@@ -1,0 +1,15 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+venv/
+.env
+.git/
+.gitignore
+*.log
+tests/
+train_roman_urdu.py
+verify_phase2.py

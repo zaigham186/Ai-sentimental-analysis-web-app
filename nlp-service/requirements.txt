@@ -17,6 +17,7 @@ detoxify
 # Machine Learning
 scikit-learn
 numpy
+joblib
 
 # Testing
 pytest

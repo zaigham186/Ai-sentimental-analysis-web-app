@@ -1,7 +1,7 @@
-
+"""
 Research NLP Service - Main FastAPI Application
 Fixed for FastAPI 0.141.1 using modern lifespan pattern
-
+"""
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, status
@@ -60,12 +60,12 @@ models_error = None
 # ============================================================================
 
 def load_models_thread():
-    
+    """
     Runs in a real OS thread via threading.Thread
     Completely separate from asyncio - cannot block event loop
     Uvicorn starts immediately, port opens, healthcheck passes
     Models load here in parallel
-    
+    """
     global analyzer, models_ready, models_loading, models_error
 
     logger.info("🔄 Model loading thread started...")
@@ -107,7 +107,7 @@ def load_models_thread():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    
+    """
     Modern FastAPI lifespan context manager.
     Code before yield = startup
     Code after yield = shutdown
@@ -117,7 +117,7 @@ async def lifespan(app: FastAPI):
     Uvicorn sees startup complete.
     Port opens.
     Healthcheck passes.
-    
+    """
     global models_loading
 
     logger.info("=" * 70)
@@ -187,11 +187,19 @@ async def health_check():
     # Returns immediately always
     # No waiting for models
     # Railway healthcheck passes instantly
+    device = "cpu"
+    if analyzer and hasattr(analyzer, "sentiment_analyzer") and hasattr(analyzer.sentiment_analyzer, "device"):
+        device = analyzer.sentiment_analyzer.device
+
     return {
         "success": True,
         "status": "healthy",
+        "service": APP_NAME,
+        "version": APP_VERSION,
+        "device": device,
         "models_ready": models_ready,
         "models_loading": models_loading,
+        "models_loaded": analyzer.get_model_status() if (analyzer and analyzer.is_ready) else {},
         "models_error": models_error
     }
 
@@ -248,6 +256,7 @@ def analyze_text(request: AnalysisRequest):
             toxicity=result["toxicity"],
             aggression=result.get("aggression"),
             cyberbullying=result.get("cyberbullying"),
+            roman_urdu=result.get("roman_urdu"),
             metadata=result["metadata"]
         )
     except ValueError as e:
