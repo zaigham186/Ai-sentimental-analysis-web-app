@@ -27,13 +27,16 @@ dmypy.json
 *.log
 logs/
 
-# Model Cache and Downloads
+# Model Cache and Downloads (ignore root downloads, preserve trained models in app/resources/models)
 .cache/
-models/
+/models/
 *.bin
 *.safetensors
 *.pt
 *.pth
+!app/resources/models/
+!app/resources/models/**
+!app/models/
 
 # IDE
 .vscode/

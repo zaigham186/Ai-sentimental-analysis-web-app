@@ -38,6 +38,14 @@ from app.services.analyzer import UnifiedAnalyzer
 # Load environment variables
 load_dotenv()
 
+# Configure cache directories if running in container
+if "HF_HOME" not in os.environ and os.path.exists("/app/cache/huggingface"):
+    os.environ["HF_HOME"] = "/app/cache/huggingface"
+if "TRANSFORMERS_CACHE" not in os.environ and os.path.exists("/app/cache/transformers"):
+    os.environ["TRANSFORMERS_CACHE"] = "/app/cache/transformers"
+if "TORCH_HOME" not in os.environ and os.path.exists("/app/cache/torch"):
+    os.environ["TORCH_HOME"] = "/app/cache/torch"
+
 # Configuration
 APP_NAME = os.getenv("APP_NAME", "Research NLP Service")
 APP_VERSION = os.getenv("APP_VERSION", "2.0.0")
@@ -76,7 +84,7 @@ def load_models_thread():
             toxicity_model=TOXICITY_MODEL
         )
 
-        logger.info("📥 Downloading models - this takes 3-5 minutes...")
+        logger.info("📥 Loading NLP models into memory (from local cache)...")
         load_results = instance.load_models()
 
         logger.info("Model Loading Results:")
