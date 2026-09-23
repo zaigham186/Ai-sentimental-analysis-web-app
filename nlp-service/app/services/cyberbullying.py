@@ -126,7 +126,7 @@ class CyberbullyingAnalyzer:
         return {
             "scores": scores,
             "matched_types": matched_types,
-            "top_type": top_type if scores[top_type] > 0 else "none",
+            "top_type": top_type if (top_type != "none" and scores.get(top_type, 0) > 0) else "none",
             "total_matches": sum(scores.values())
         }
 
