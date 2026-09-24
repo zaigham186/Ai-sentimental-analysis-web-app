@@ -4,6 +4,7 @@ const axios = require('axios');
 const mongoose = require('mongoose');
 const { VideoResponse, Coding } = require('../models');
 const { CodingAIService, createCodingProvider, RuleBasedProvider } = require('../services/codingAI');
+const { buildResponseQueryAndResults } = require('../utils/responseQueryHelper');
 
 // Initialize AI coding service with configurable provider (NLP primary, RuleBased fallback)
 const codingAI = new CodingAIService(createCodingProvider());
@@ -19,120 +20,16 @@ const codingAI = new CodingAIService(createCodingProvider());
 /**
  * Get all responses with coding status
  * GET /api/admin/coding/responses
- * Supports participant-based pagination for ranges like 1-30, 31-60, etc.
+ * Supports pagination, real-time participant search across all videos,
+ * sequential video ordering, and flexible sorting.
  */
 const getAllResponses = async (req, res) => {
   try {
-    const {
-      coded,
-      condition,
-      video,
-      search,
-      page = 1,
-      limit = 50,
-      participantRangeStart,
-      participantRangeEnd,
-      participantPageSize = 30
-    } = req.query;
-
-    // Build query
-    const query = {};
-    let participantIds = [];
-
-    // Participant-based pagination: Get participant IDs in the specified range
-    if (participantRangeStart && participantRangeEnd) {
-      const { Participant } = require('../models');
-      const participantQuery = condition ? { condition } : {};
-      const participants = await Participant.find(participantQuery)
-        .sort({ createdAt: 1 }) // Consistent ordering
-        .skip(parseInt(participantRangeStart) - 1)
-        .limit(parseInt(participantRangeEnd) - parseInt(participantRangeStart) + 1)
-        .select('_id');
-
-      participantIds = participants.map(p => p._id);
-      query.participant = { $in: participantIds };
-    } else {
-      // Legacy: Filter by condition
-      if (condition) {
-        const { Participant } = require('../models');
-        const participants = await Participant.find({ condition }).distinct('_id');
-        query.participant = { $in: participants };
-      }
-    }
-
-    // Filter by video
-    if (video) {
-      query.video = video;
-    }
-
-    // Get all responses
-    let responses = await VideoResponse.find(query)
-      .populate('participant', 'username name condition')
-      .populate('video', 'title order')
-      .sort({ submittedAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
-
-    // Get coding status for each response
-    // FIXED: Only mark as coded if it has final reviewed coding, not just AI suggestion
-    const responsesWithCoding = await Promise.all(
-      responses.map(async (response) => {
-        const coding = await Coding.findPrimaryCoding(response._id);
-
-        // Check if it's actually coded (has final coding data) or just AI suggestion pending
-        const isActuallyCoded = coding && (
-          coding.reviewStatus === 'reviewed' ||
-          (coding.reviewStatus === null && (coding.sentiment || coding.aggression?.category || coding.cyberbullying?.present !== undefined))
-        );
-
-        const responseObj = response.toObject();
-        return {
-          ...responseObj,
-          id: responseObj._id.toString(), // FIXED: Add id field for frontend
-          coded: isActuallyCoded,
-          codingId: coding?._id,
-          codingStatus: isActuallyCoded ? 'CODED' : 'UNCODED',
-          hasAISuggestion: !!(coding && coding.aiCoding),
-          reviewStatus: coding?.reviewStatus || null
-        };
-      })
-    );
-
-    // Filter by coded status if specified
-    let filteredResponses = responsesWithCoding;
-    if (coded === 'true') {
-      filteredResponses = responsesWithCoding.filter(r => r.coded);
-    } else if (coded === 'false') {
-      filteredResponses = responsesWithCoding.filter(r => !r.coded);
-    }
-
-    // Search in response text
-    if (search) {
-      filteredResponses = filteredResponses.filter(r =>
-        r.responseText.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-
-    const total = filteredResponses.length;
-
-    // Get total participant count for pagination
-    const { Participant } = require('../models');
-    const totalParticipantCount = await Participant.countDocuments(condition ? { condition } : {});
+    const result = await buildResponseQueryAndResults(req.query);
 
     res.json({
       success: true,
-      data: {
-        responses: filteredResponses,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit),
-          totalParticipants: totalParticipantCount,
-          participantRangeStart: participantRangeStart ? parseInt(participantRangeStart) : null,
-          participantRangeEnd: participantRangeEnd ? parseInt(participantRangeEnd) : null
-        }
-      }
+      data: result
     });
   } catch (error) {
     console.error('Get all responses error:', error);

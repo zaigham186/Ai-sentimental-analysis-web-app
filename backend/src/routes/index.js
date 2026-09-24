@@ -4,6 +4,7 @@ const participantRoutes = require('./participants');
 const conditionRoutes = require('./condition');
 const experimentRoutes = require('./experiment');
 const adminRoutes = require('./admin');
+const responseRoutes = require('./responses');
 
 const router = express.Router();
 
@@ -17,8 +18,10 @@ router.use('/participants', participantRoutes);
 router.use('/condition', conditionRoutes);
 router.use('/experiment', experimentRoutes);
 router.use('/admin', adminRoutes);
+router.use('/responses', responseRoutes);
 
 // Future routes will be added here:
 // router.use('/questionnaires', questionnaireRoutes);
 
 module.exports = router;
+

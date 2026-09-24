@@ -392,12 +392,17 @@ export const api = {
     coding: {
       // Get all responses with coding status
       getResponses: (params?: {
-        coded?: boolean;
+        coded?: boolean | string;
         condition?: string;
         video?: string;
         search?: string;
         page?: number;
         limit?: number;
+        sortBy?: string;
+        sortOrder?: string;
+        participantRangeStart?: number;
+        participantRangeEnd?: number;
+        participantPageSize?: number;
       }) => {
         const queryParams = new URLSearchParams();
         if (params?.coded !== undefined) queryParams.append('coded', params.coded.toString());
@@ -406,6 +411,11 @@ export const api = {
         if (params?.search) queryParams.append('search', params.search);
         if (params?.page) queryParams.append('page', params.page.toString());
         if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+        if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+        if (params?.participantRangeStart) queryParams.append('participantRangeStart', params.participantRangeStart.toString());
+        if (params?.participantRangeEnd) queryParams.append('participantRangeEnd', params.participantRangeEnd.toString());
+        if (params?.participantPageSize) queryParams.append('participantPageSize', params.participantPageSize.toString());
         const query = queryParams.toString();
         return fetchAPI(`/api/admin/coding/responses${query ? `?${query}` : ''}`);
       },
@@ -673,18 +683,28 @@ export const api = {
       getAll: (params?: {
         condition?: string;
         video?: string;
-        coded?: string;
+        coded?: string | boolean;
         search?: string;
         page?: number;
         limit?: number;
+        sortBy?: string;
+        sortOrder?: string;
+        participantRangeStart?: number;
+        participantRangeEnd?: number;
+        participantPageSize?: number;
       }) => {
         const queryParams = new URLSearchParams();
         if (params?.condition) queryParams.append('condition', params.condition);
         if (params?.video) queryParams.append('video', params.video);
-        if (params?.coded) queryParams.append('coded', params.coded);
+        if (params?.coded !== undefined) queryParams.append('coded', params.coded.toString());
         if (params?.search) queryParams.append('search', params.search);
         if (params?.page) queryParams.append('page', params.page.toString());
         if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+        if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+        if (params?.participantRangeStart) queryParams.append('participantRangeStart', params.participantRangeStart.toString());
+        if (params?.participantRangeEnd) queryParams.append('participantRangeEnd', params.participantRangeEnd.toString());
+        if (params?.participantPageSize) queryParams.append('participantPageSize', params.participantPageSize.toString());
         const query = queryParams.toString();
         return fetchAPI(`/api/admin/responses${query ? `?${query}` : ''}`);
       },
@@ -695,6 +715,34 @@ export const api = {
       // Get statistics
       stats: () => fetchAPI('/api/admin/responses/stats')
     }
+  },
+
+  // Public responses endpoint (Requirement 5)
+  responses: {
+    getAll: (params?: {
+      condition?: string;
+      video?: string;
+      coded?: string | boolean;
+      search?: string;
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+      sortOrder?: string;
+    }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.condition) queryParams.append('condition', params.condition);
+      if (params?.video) queryParams.append('video', params.video);
+      if (params?.coded !== undefined) queryParams.append('coded', params.coded.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+      const query = queryParams.toString();
+      return fetchAPI(`/api/responses${query ? `?${query}` : ''}`);
+    },
+    getById: (id: string) => fetchAPI(`/api/responses/${id}`),
+    stats: () => fetchAPI('/api/responses/stats')
   }
 
   // Future endpoints:

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -12,11 +12,11 @@ import type { Admin, ResponseWithCoding, CodingStatistics, PendingReviewItem } f
 
 /**
  * Response Coding Management Page
- * Phase 5: NLP Results & Sentimental Coding UI Integration
+ * Phase 5 & 10: NLP Results & Sentimental Coding UI Integration
  * 
  * CRITICAL RESEARCH PRINCIPLES:
  * - AI suggestions are decision-support aids only; researcher holds final authority
- * - Sentiment &ne; Aggression &ne; Cyberbullying
+ * - Sentiment ≠ Aggression ≠ Cyberbullying
  * - Full visibility of pending AI reviews and bulk processing
  */
 
@@ -40,20 +40,29 @@ export default function AdminCodingPage() {
   const [validationData, setValidationData] = useState<any>(null);
   const [showValidationDetails, setShowValidationDetails] = useState(false);
 
-  // Filters
+  // Filters & Search
   const [codedFilter, setCodedFilter] = useState<string>('');
   const [conditionFilter, setConditionFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  
+  // Sorting options (Requirement 4)
+  // Default: participant name A-Z, secondary: video number ascending
+  const [sortByOption, setSortByOption] = useState<string>('name_asc');
+
+  // Pagination (Requirement 1: 10 per page)
+  const pageSize = 10;
   const [currentPage, setCurrentPage] = useState(1);
-  
-  // Participant-based pagination
-  const [participantPageSize] = useState(30); // Participants per range
-  const [participantPage, setParticipantPage] = useState(1);
-  const [totalParticipants, setTotalParticipants] = useState(0);
-  
-  // Pagination
   const [totalPages, setTotalPages] = useState(1);
-  const pageSize = 20;
+  const [totalResponses, setTotalResponses] = useState(0);
+
+  // Real-time search debounce (250ms)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   const loadData = useCallback(async () => {
     try {
@@ -64,21 +73,29 @@ export default function AdminCodingPage() {
       const adminResponse = await api.admin.me();
       setAdmin(adminResponse.data);
 
-      // Calculate participant range
-      const rangeStart = (participantPage - 1) * participantPageSize + 1;
-      const rangeEnd = participantPage * participantPageSize;
+      // Parse sort field and direction from sortByOption
+      let sortBy = 'name';
+      let sortOrder = 'asc';
+      if (sortByOption === 'name_asc') { sortBy = 'name'; sortOrder = 'asc'; }
+      else if (sortByOption === 'name_desc') { sortBy = 'name'; sortOrder = 'desc'; }
+      else if (sortByOption === 'video_asc') { sortBy = 'video'; sortOrder = 'asc'; }
+      else if (sortByOption === 'date_desc') { sortBy = 'date'; sortOrder = 'desc'; }
+      else if (sortByOption === 'date_asc') { sortBy = 'date'; sortOrder = 'asc'; }
+      else if (sortByOption === 'status_asc') { sortBy = 'status'; sortOrder = 'asc'; }
+      else if (sortByOption === 'status_desc') { sortBy = 'status'; sortOrder = 'desc'; }
+      else if (sortByOption === 'condition_asc') { sortBy = 'condition'; sortOrder = 'asc'; }
+      else if (sortByOption === 'condition_desc') { sortBy = 'condition'; sortOrder = 'desc'; }
 
-      // Build filter params
+      // Build filter params (10 per page, Requirement 1 & 5)
       const params: any = {
         page: currentPage,
         limit: pageSize,
-        participantRangeStart: rangeStart,
-        participantRangeEnd: rangeEnd,
-        participantPageSize: participantPageSize
+        sortBy,
+        sortOrder
       };
-      if (codedFilter) params.coded = codedFilter === 'true';
+      if (codedFilter) params.coded = codedFilter;
       if (conditionFilter) params.condition = conditionFilter;
-      if (searchQuery) params.search = searchQuery;
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
 
       // Load responses, stats, pending count, and research validation status in parallel
       const [responsesResponse, statsResponse, pendingResponse, valResponse] = await Promise.all([
@@ -88,10 +105,12 @@ export default function AdminCodingPage() {
         api.admin.coding.validationStatus().catch(() => null)
       ]);
 
-      setResponses(responsesResponse.data.responses);
-      setTotalPages(responsesResponse.data.pagination.pages);
-      setTotalParticipants(responsesResponse.data.pagination.totalParticipants || 0);
+      const resData = responsesResponse.data;
+      setResponses(resData.responses || []);
+      setTotalPages(resData.pagination?.pages || 1);
+      setTotalResponses(resData.pagination?.total || 0);
       setStats(statsResponse.data);
+
       if (pendingResponse?.data?.pagination?.total !== undefined) {
         setPendingTotal(pendingResponse.data.pagination.total);
       }
@@ -107,7 +126,7 @@ export default function AdminCodingPage() {
     } finally {
       setLoading(false);
     }
-  }, [codedFilter, conditionFilter, searchQuery, currentPage, pageSize, participantPage, participantPageSize, router]);
+  }, [codedFilter, conditionFilter, debouncedSearch, currentPage, pageSize, sortByOption, router]);
 
   const loadPendingReviews = useCallback(async () => {
     try {
@@ -145,6 +164,29 @@ export default function AdminCodingPage() {
     router.push(`/admin/coding/${responseId}`);
   };
 
+  // Clear search helper (Requirement 2)
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setDebouncedSearch('');
+    setCurrentPage(1);
+  };
+
+  // Column header sort helper
+  const handleHeaderSort = (field: 'name' | 'video' | 'date' | 'status' | 'condition') => {
+    setCurrentPage(1);
+    if (field === 'name') {
+      setSortByOption(prev => prev === 'name_asc' ? 'name_desc' : 'name_asc');
+    } else if (field === 'video') {
+      setSortByOption('video_asc');
+    } else if (field === 'date') {
+      setSortByOption(prev => prev === 'date_desc' ? 'date_asc' : 'date_desc');
+    } else if (field === 'status') {
+      setSortByOption(prev => prev === 'status_asc' ? 'status_desc' : 'status_asc');
+    } else if (field === 'condition') {
+      setSortByOption(prev => prev === 'condition_asc' ? 'condition_desc' : 'condition_asc');
+    }
+  };
+
   // Bulk AI Analysis
   const handleBulkAnalyze = async () => {
     if (!confirm('Analyze all uncoded responses with AI? This will run the NLP pipeline in the background.')) return;
@@ -172,7 +214,7 @@ export default function AdminCodingPage() {
     }
   };
 
-  if (loading) {
+  if (loading && !responses.length) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner size="lg" />
@@ -183,6 +225,10 @@ export default function AdminCodingPage() {
   if (!admin) {
     return null;
   }
+
+  // Calculate Viewing range for display (Requirement 1: "Viewing 1-10 of X total")
+  const viewingStart = totalResponses === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const viewingEnd = Math.min(currentPage * pageSize, totalResponses);
 
   return (
     <AdminLayout admin={admin} onLogout={handleLogout}>
@@ -274,53 +320,7 @@ export default function AdminCodingPage() {
           </CardBody>
         </Card>
 
-        {/* Participant Range Navigation */}
-        <Card className="mb-6">
-          <CardBody>
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-sm text-gray-700">
-                <span className="font-medium">Viewing Participants:</span>{' '}
-                <span className="font-bold text-blue-600">
-                  {(participantPage - 1) * participantPageSize + 1}–
-                  {Math.min(participantPage * participantPageSize, totalParticipants)}
-                </span>
-                {' '}of{' '}
-                <span className="font-bold">{totalParticipants}</span>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setParticipantPage(p => Math.max(1, p - 1));
-                    setCurrentPage(1);
-                  }}
-                  disabled={participantPage === 1}
-                >
-                  ← Previous {participantPageSize}
-                </Button>
-                <div className="text-sm text-gray-600 px-2">
-                  Range {participantPage}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const maxPage = Math.ceil(totalParticipants / participantPageSize);
-                    setParticipantPage(p => Math.min(maxPage, p + 1));
-                    setCurrentPage(1);
-                  }}
-                  disabled={participantPage * participantPageSize >= totalParticipants}
-                >
-                  Next {participantPageSize} →
-                </Button>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* Phase 6: Research Validation & Accuracy Calibration Status */}
+        {/* Phase 6: Research Validation Status */}
         {validationData && (
           <Card className="mb-6 border border-emerald-200 bg-white shadow-sm overflow-hidden">
             <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 px-6 py-4 border-b border-emerald-100 flex flex-wrap items-center justify-between gap-3">
@@ -361,7 +361,6 @@ export default function AdminCodingPage() {
             </div>
 
             <CardBody className="p-5">
-              {/* Models & Systems Availability Bar */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                 <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
                   <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Sentiment Model</div>
@@ -396,7 +395,6 @@ export default function AdminCodingPage() {
                 </div>
               </div>
 
-              {/* Validation Summary Metrics */}
               {validationData.is_validated && validationData.summary ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="p-3 bg-emerald-50/50 rounded-lg border border-emerald-100">
@@ -405,7 +403,7 @@ export default function AdminCodingPage() {
                       {validationData.summary.cyberbullying?.f1 !== undefined ? validationData.summary.cyberbullying.f1 : 'N/A'}
                     </div>
                     <div className="text-[10px] text-emerald-700 mt-0.5">
-                      Cohen's κ: {validationData.summary.cyberbullying?.cohen_kappa !== undefined ? validationData.summary.cyberbullying.cohen_kappa : 'N/A'} (Precision: {validationData.summary.cyberbullying?.precision})
+                      Cohen's κ: {validationData.summary.cyberbullying?.cohen_kappa !== undefined ? validationData.summary.cyberbullying.cohen_kappa : 'N/A'}
                     </div>
                   </div>
 
@@ -415,7 +413,7 @@ export default function AdminCodingPage() {
                       {validationData.summary.sentiment?.accuracy !== undefined ? `${Math.round(validationData.summary.sentiment.accuracy * 100)}%` : 'N/A'}
                     </div>
                     <div className="text-[10px] text-blue-700 mt-0.5">
-                      Macro F1: {validationData.summary.sentiment?.macro_f1} | κ: {validationData.summary.sentiment?.cohen_kappa}
+                      Macro F1: {validationData.summary.sentiment?.macro_f1}
                     </div>
                   </div>
 
@@ -425,167 +423,116 @@ export default function AdminCodingPage() {
                       {validationData.threshold_calibration?.cyberbullying_optimal !== undefined ? `${validationData.threshold_calibration.cyberbullying_optimal}` : '0.50'}
                     </div>
                     <div className="text-[10px] text-purple-700 mt-0.5">
-                      Calibrated for Cyberbullying F1 ({validationData.threshold_calibration?.cyberbullying_best_f1})
+                      Calibrated for Best F1 ({validationData.threshold_calibration?.cyberbullying_best_f1})
                     </div>
                   </div>
 
                   <div className="p-3 bg-indigo-50/50 rounded-lg border border-indigo-100">
-                    <div className="text-[11px] font-semibold text-indigo-800 uppercase">Inter-Rater Reliability</div>
+                    <div className="text-[11px] font-semibold text-indigo-800 uppercase">Inter-Rater Agreement</div>
                     <div className="text-lg font-extrabold text-indigo-900 mt-0.5">
                       {validationData.inter_rater?.cohen_kappa?.cyberbullying !== undefined ? `κ = ${validationData.inter_rater.cohen_kappa.cyberbullying}` : '1 Coder'}
                     </div>
                     <div className="text-[10px] text-indigo-700 mt-0.5">
-                      Human vs. Human agreement across {validationData.inter_rater?.sample_count || 0} dual-coded items
+                      Dual-coded items: {validationData.inter_rater?.sample_count || 0}
                     </div>
                   </div>
                 </div>
               ) : (
                 <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-900 flex items-center gap-2">
                   <span>ℹ️</span>
-                  <span><strong>Human Gold Labels Required:</strong> Real empirical accuracy metrics remain pending until an independently human-coded validation dataset is evaluated.</span>
-                </div>
-              )}
-
-              {/* Collapsible Calibration & Error Details */}
-              {showValidationDetails && validationData.is_validated && (
-                <div className="mt-4 pt-4 border-t border-gray-100 text-xs">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="font-bold text-gray-800 mb-2">Error Discrepancy Breakdown ({validationData.error_summary?.total_discrepancies || 0} total)</h4>
-                      <ul className="space-y-1">
-                        {validationData.error_summary?.breakdown && Object.entries(validationData.error_summary.breakdown).map(([cat, count]: any) => (
-                          <li key={cat} className="flex justify-between py-1 border-b border-gray-100 text-gray-700">
-                            <span className="font-mono text-[11px]">{cat}</span>
-                            <span className="font-bold">{count}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div>
-                      <h4 className="font-bold text-gray-800 mb-2">Research Methodology Principles</h4>
-                      <div className="p-3 bg-gray-50 rounded border border-gray-200 space-y-1.5 text-gray-600 text-[11px]">
-                        <div>• <strong>Negative Sentiment ≠ Cyberbullying:</strong> Content critique is non-bullying.</div>
-                        <div>• <strong>Toxicity ≠ Cyberbullying:</strong> Vulgarity without targeted harassment is separate.</div>
-                        <div>• <strong>Human Authority:</strong> AI outputs are suggestions; human review is mandatory.</div>
-                        <div>• <strong>Roman Urdu Nuances:</strong> Dialect code-switching requires empirical validation.</div>
-                      </div>
-                    </div>
-                  </div>
+                  <span><strong>Human Gold Labels Required:</strong> Empirical accuracy metrics pending independently human-coded validation evaluation.</span>
                 </div>
               )}
             </CardBody>
           </Card>
         )}
 
-        {/* VIEW 1: PENDING REVIEWS LIST */}
-        {showPendingReview ? (
-          <Card className="border border-purple-200">
-            <CardBody>
-              <div className="flex items-center justify-between mb-4 border-b pb-3">
-                <div>
-                  <h2 className="text-xl font-bold text-purple-950">
-                    Pending AI Reviews ({pendingReviews.length} shown of {pendingTotal})
-                  </h2>
-                  <p className="text-xs text-gray-600 mt-0.5">
-                    Responses analyzed by the NLP service awaiting researcher review (Accept, Modify, or Reject).
-                  </p>
+        {/* 1. PAGINATION BAR (Requirement 1: 10 per page, "Viewing 1-10 of X total", Previous 10 / Next 10 buttons) */}
+        <Card className="mb-6 border border-gray-200 shadow-sm bg-white">
+          <CardBody className="py-3 px-5">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-sm text-gray-700 flex flex-wrap items-center gap-2">
+                <span className="font-semibold text-blue-700">
+                  {totalResponses === 0 ? 'Viewing 0 of 0 total' : `Viewing ${viewingStart}–${viewingEnd} of ${totalResponses} total`}
+                </span>
+                {debouncedSearch.trim() && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                    <span>Participant: "{debouncedSearch.trim()}" (All Videos)</span>
+                    <button
+                      onClick={handleClearSearch}
+                      className="text-blue-500 hover:text-blue-800 font-bold ml-1"
+                      title="Clear search"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1 || loading}
+                  className="font-medium text-xs px-3 py-1.5"
+                >
+                  ← Previous 10
+                </Button>
+                <div className="text-xs font-semibold text-gray-600 px-2 min-w-[80px] text-center">
+                  Page {currentPage} of {totalPages || 1}
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => loadPendingReviews()}
-                  disabled={loadingPending}
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages || loading}
+                  className="font-medium text-xs px-3 py-1.5"
                 >
-                  🔄 Refresh Reviews
+                  Next 10 →
+                </Button>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+
+        {showPendingReview ? (
+          /* VIEW 1: PENDING REVIEWS LIST */
+          <Card className="border border-purple-200">
+            <CardBody>
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+                <div>
+                  <h3 className="text-lg font-bold text-purple-950">⚡ Pending AI Suggestions Awaiting Human Review</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Researcher retains final decision authority.</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={loadPendingReviews} disabled={loadingPending}>
+                  {loadingPending ? 'Refreshing...' : '🔄 Refresh'}
                 </Button>
               </div>
 
-              {loadingPending ? (
-                <div className="py-12 flex justify-center">
-                  <LoadingSpinner size="md" />
-                </div>
-              ) : pendingReviews.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  <p className="text-base font-medium">No pending AI reviews found.</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    All analyzed responses have been reviewed or no responses have been analyzed with AI yet.
-                  </p>
+              {pendingReviews.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">No pending AI suggestions require review at this time.</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {pendingReviews.map((item) => (
-                    <div 
-                      key={item.codingId || item.responseId}
-                      className="p-4 bg-white rounded-lg border border-gray-200 hover:border-purple-300 shadow-sm transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                          <span className="font-bold text-gray-900 text-sm">{item.participant?.name || 'Participant'}</span>
-                          <span className="text-xs text-gray-500">(@{item.participant?.username || 'unknown'})</span>
-                          <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${
-                            item.participant?.condition === 'anonymous' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
-                          }`}>
-                            {item.participant?.condition || 'condition'}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            Video #{item.video?.order}
-                          </span>
-                          {item.aiSuggestion?.metadata?.fallback_used && (
-                            <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded">
-                              Fallback Heuristic
-                            </span>
-                          )}
+                <div className="space-y-4">
+                  {pendingReviews.map(item => (
+                    <div key={item.codingId} className="p-4 rounded-lg border border-purple-100 bg-purple-50/30 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                      <div className="space-y-1.5 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-gray-900 text-sm">{item.participant?.name}</span>
+                          <span className="text-xs text-gray-500 font-mono">@{item.participant?.username}</span>
+                          <ConditionBadge condition={item.participant?.condition || 'anonymous'} />
+                          <span className="text-xs font-medium text-gray-600">Video #{item.video?.order}: {item.video?.title}</span>
                         </div>
-
-                        <p className="text-xs text-gray-700 font-sans line-clamp-2 bg-gray-50 p-2 rounded border border-gray-100 mb-2">
-                          &ldquo;{item.responseText}&rdquo;
-                        </p>
-
-                        {/* AI Suggestions Summary Tags */}
-                        <div className="flex flex-wrap items-center gap-2 text-xs">
-                          <span className="font-medium text-gray-500">AI Suggested:</span>
-                          
-                          {/* Sentiment tag */}
-                          <span className={`px-2 py-0.5 font-medium rounded ${
-                            item.aiSuggestion?.sentiment?.label === 'positive' ? 'bg-emerald-100 text-emerald-800' :
-                            item.aiSuggestion?.sentiment?.label === 'negative' ? 'bg-rose-100 text-rose-800' :
-                            'bg-slate-100 text-slate-800'
-                          }`}>
-                            Sentiment: {item.aiSuggestion?.sentiment?.label || 'neutral'}
-                          </span>
-
-                          {/* Toxicity tag if available */}
-                          {item.aiSuggestion?.metadata?.toxicity_score !== undefined && (
-                            <span className={`px-2 py-0.5 font-medium rounded ${
-                              item.aiSuggestion.metadata.is_toxic ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
-                            }`}>
-                              Toxicity: {(item.aiSuggestion.metadata.toxicity_score * 100).toFixed(0)}%
-                            </span>
-                          )}
-
-                          {/* Aggression tag */}
-                          <span className="px-2 py-0.5 font-medium bg-purple-100 text-purple-800 rounded">
-                            Aggression: {item.aiSuggestion?.aggression?.label || 'none'} (lvl {item.aiSuggestion?.aggression?.level ?? 0})
-                          </span>
-
-                          {/* Cyberbullying tag */}
-                          <span className={`px-2 py-0.5 font-medium rounded ${
-                            item.aiSuggestion?.cyberbullying?.present ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
-                          }`}>
-                            Cyberbullying: {item.aiSuggestion?.cyberbullying?.present ? 'Present' : 'None'}
-                          </span>
-                        </div>
+                        <p className="text-xs text-gray-700 italic">"{item.responseText}"</p>
                       </div>
-
-                      <div className="flex items-center">
-                        <Button
-                          onClick={() => handleViewResponse(item.responseId)}
-                          className="bg-purple-600 hover:bg-purple-700 text-white text-xs whitespace-nowrap py-2 px-3.5"
-                        >
-                          Review & Code &rarr;
-                        </Button>
-                      </div>
+                      <Button
+                        onClick={() => handleViewResponse(item.responseId)}
+                        className="bg-purple-600 hover:bg-purple-700 text-white text-xs whitespace-nowrap py-2 px-3.5"
+                      >
+                        Review & Code →
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -593,183 +540,305 @@ export default function AdminCodingPage() {
             </CardBody>
           </Card>
         ) : (
-          /* VIEW 2: ALL RESPONSES TABLE */
+          /* VIEW 2: ALL RESPONSES TABLE WITH SEARCH & SORTING */
           <>
-            {/* Filters */}
-            <Card className="mb-6 border border-gray-200">
+            {/* 2. SEARCH BAR & 4. SORTING OPTIONS */}
+            <Card className="mb-6 border border-gray-200 shadow-sm bg-white">
               <CardBody>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Search */}
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                      Search Response Text
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {/* Real-time search (Requirement 2) */}
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                      Search Participant (Name or Username)
                     </label>
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      placeholder="Search participant responses..."
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        placeholder="Search by participant name or @username..."
+                        className="w-full pl-9 pr-20 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
+                      />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        🔍
+                      </div>
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={handleClearSearch}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-xs font-semibold text-gray-500 hover:text-red-600 transition-colors"
+                          title="Clear search"
+                        >
+                          ✕ Clear
+                        </button>
+                      )}
+                    </div>
+                    <p className="mt-1 text-[11px] text-gray-500">
+                      Real-time search across all videos for that participant
+                    </p>
                   </div>
 
-                  {/* Coding Status Filter */}
+                  {/* Sorting Options (Requirement 4) */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                      Coding Status
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                      Sort Responses
                     </label>
                     <select
-                      value={codedFilter}
+                      value={sortByOption}
                       onChange={(e) => {
-                        setCodedFilter(e.target.value);
+                        setSortByOption(e.target.value);
                         setCurrentPage(1);
                       }}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     >
-                      <option value="">All Responses</option>
-                      <option value="false">Uncoded Only</option>
-                      <option value="true">Coded Only</option>
+                      <option value="name_asc">Participant Name (A–Z) — Default</option>
+                      <option value="name_desc">Participant Name (Z–A)</option>
+                      <option value="video_asc">Video Number (#1, #2, #3, #4...)</option>
+                      <option value="date_desc">Submission Date (Newest First)</option>
+                      <option value="date_asc">Submission Date (Oldest First)</option>
+                      <option value="status_asc">Coding Status (Uncoded First)</option>
+                      <option value="status_desc">Coding Status (Coded First)</option>
+                      <option value="condition_asc">Condition (Anonymous First)</option>
+                      <option value="condition_desc">Condition (Identifiable First)</option>
                     </select>
+                    <p className="mt-1 text-[11px] text-gray-500">
+                      Secondary: video number ascending (#1, #2...)
+                    </p>
                   </div>
 
-                  {/* Condition Filter */}
+                  {/* Filter Status & Condition */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                      Experimental Condition
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                      Filter Responses
                     </label>
-                    <select
-                      value={conditionFilter}
-                      onChange={(e) => {
-                        setConditionFilter(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    >
-                      <option value="">All Conditions</option>
-                      <option value="anonymous">Anonymous Condition</option>
-                      <option value="identifiable">Identifiable Condition</option>
-                    </select>
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        value={codedFilter}
+                        onChange={(e) => {
+                          setCodedFilter(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full px-2.5 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        <option value="">All Statuses</option>
+                        <option value="false">Uncoded Only</option>
+                        <option value="true">Coded Only</option>
+                      </select>
+                      <select
+                        value={conditionFilter}
+                        onChange={(e) => {
+                          setConditionFilter(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full px-2.5 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        <option value="">All Conditions</option>
+                        <option value="anonymous">Anonymous</option>
+                        <option value="identifiable">Identifiable</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               </CardBody>
             </Card>
 
-            {/* Responses Table */}
-            <Card className="border border-gray-200">
-              <CardBody>
+            {/* 3. RESPONSES TABLE WITH ALL REQUIRED FIELDS & SEQUENTIAL ORDER */}
+            <Card className="border border-gray-200 shadow-sm overflow-hidden bg-white">
+              <CardBody className="p-0">
                 {responses.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-gray-500">
+                  <div className="text-center py-16">
+                    <p className="text-gray-500 text-sm">
                       {searchQuery || codedFilter || conditionFilter
                         ? 'No responses match your search filters'
                         : 'No responses available in dataset'}
                     </p>
+                    {searchQuery && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleClearSearch}
+                        className="mt-3 text-xs"
+                      >
+                        Reset Search
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <>
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead>
-                          <tr className="bg-gray-50">
-                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">
-                              Participant
+                          <tr className="bg-gray-50/80">
+                            <th 
+                              onClick={() => handleHeaderSort('name')}
+                              className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-600 cursor-pointer hover:bg-gray-100 transition-colors"
+                            >
+                              Participant {sortByOption.startsWith('name') && (sortByOption.endsWith('asc') ? '↑' : '↓')}
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">
-                              Condition
+                            <th 
+                              onClick={() => handleHeaderSort('condition')}
+                              className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-600 cursor-pointer hover:bg-gray-100 transition-colors"
+                            >
+                              Condition {sortByOption.startsWith('condition') && (sortByOption.endsWith('asc') ? '↑' : '↓')}
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">
-                              Video
+                            <th 
+                              onClick={() => handleHeaderSort('video')}
+                              className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-600 cursor-pointer hover:bg-gray-100 transition-colors"
+                            >
+                              Video Stimulus {sortByOption === 'video_asc' && '↑'}
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">
+                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-600">
                               Response Preview
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">
-                              Submitted
+                            <th 
+                              onClick={() => handleHeaderSort('date')}
+                              className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-600 cursor-pointer hover:bg-gray-100 transition-colors"
+                            >
+                              Submitted {sortByOption.startsWith('date') && (sortByOption.endsWith('asc') ? '↑' : '↓')}
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">
-                              Status
+                            <th 
+                              onClick={() => handleHeaderSort('status')}
+                              className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-600 cursor-pointer hover:bg-gray-100 transition-colors"
+                            >
+                              Coding Status {sortByOption.startsWith('status') && (sortByOption.endsWith('asc') ? '↑' : '↓')}
                             </th>
-                            <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-500">
+                            <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-600">
                               Action
                             </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 bg-white">
-                          {responses.map((response) => (
-                            <tr key={response.id} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-4 py-3 text-sm text-gray-900">
-                                <div>
-                                  <div className="font-semibold">{response.participant?.name || 'N/A'}</div>
-                                  <div className="text-gray-500 text-xs font-mono">
-                                    @{response.participant?.username || 'unknown'}
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                <ConditionBadge condition={response.participant?.condition || 'anonymous'} />
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-600">
-                                <div>
-                                  <div className="font-semibold">#{response.video?.order || 'N/A'}</div>
-                                  <div className="text-xs text-gray-500 truncate max-w-[140px]">
-                                    {response.video?.title || 'Unknown'}
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-600 max-w-xs">
-                                <div className="truncate font-sans text-xs">
-                                  {response.responseText}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                                {new Date(response.submittedAt).toLocaleDateString()}
-                              </td>
-                              <td className="px-4 py-3 text-sm whitespace-nowrap">
-                                <CodingStatusBadge coded={response.coded} />
-                              </td>
-                              <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleViewResponse(response.id)}
-                                  className="text-xs"
-                                >
-                                  {response.coded ? 'View Coding' : 'Code Response'}
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
+                          {responses.map((response, index) => {
+                            // Check if this response starts a new participant group
+                            const prevResponse = index > 0 ? responses[index - 1] : null;
+                            const isNewParticipant = !prevResponse || 
+                              (prevResponse.participant?._id !== response.participant?._id &&
+                               prevResponse.participant?.username !== response.participant?.username);
+
+                            return (
+                              <React.Fragment key={response.id || response._id || index}>
+                                {/* Visual participant group separator when search is active or grouped */}
+                                {isNewParticipant && debouncedSearch.trim() && (
+                                  <tr className="bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-transparent border-t-2 border-b border-blue-200">
+                                    <td colSpan={7} className="px-4 py-2">
+                                      <div className="flex items-center gap-2 text-xs">
+                                        <span className="font-bold text-blue-950">
+                                          👤 {response.participant?.name || 'Anonymous Participant'}
+                                        </span>
+                                        <span className="font-mono text-[11px] text-blue-700 bg-white/90 px-2 py-0.5 rounded border border-blue-200">
+                                          @{response.participant?.username || 'unknown'}
+                                        </span>
+                                        <ConditionBadge condition={response.participant?.condition || 'anonymous'} />
+                                        <span className="text-[11px] text-blue-600 font-medium ml-auto">
+                                          Sequential Video Responses (#1, #2, #3, #4...)
+                                        </span>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+
+                                <tr className="hover:bg-blue-50/30 transition-colors">
+                                  {/* Field 1: Participant name + username */}
+                                  <td className="px-4 py-3 text-sm text-gray-900">
+                                    <div>
+                                      <div className="font-semibold text-gray-900">
+                                        {response.participant?.name || 'N/A'}
+                                      </div>
+                                      <div className="text-gray-500 text-xs font-mono">
+                                        @{response.participant?.username || 'unknown'}
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  {/* Field 2: Condition (Identifiable/Anonymous) */}
+                                  <td className="px-4 py-3 text-sm whitespace-nowrap">
+                                    <ConditionBadge condition={response.participant?.condition || 'anonymous'} />
+                                  </td>
+
+                                  {/* Field 3: Video number + scenario name (Sequential: Video #1, #2...) */}
+                                  <td className="px-4 py-3 text-sm text-gray-700">
+                                    <div className="flex items-center gap-2">
+                                      <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded bg-slate-100 text-slate-800 border border-slate-300 whitespace-nowrap">
+                                        Video #{response.video?.order ?? '—'}
+                                      </span>
+                                      <div className="text-xs text-gray-600 truncate max-w-[150px] font-medium" title={response.video?.title}>
+                                        {response.video?.title || 'Scenario Stimulus'}
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  {/* Field 4: Response preview text */}
+                                  <td className="px-4 py-3 text-sm text-gray-600 max-w-xs">
+                                    <div className="truncate font-sans text-xs" title={response.responseText}>
+                                      {response.responseText}
+                                    </div>
+                                  </td>
+
+                                  {/* Field 5: Submission date */}
+                                  <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                                    {response.submittedAt ? new Date(response.submittedAt).toLocaleDateString(undefined, {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric'
+                                    }) : 'N/A'}
+                                  </td>
+
+                                  {/* Field 6: Coding status (CODED/UNCODED) */}
+                                  <td className="px-4 py-3 text-sm whitespace-nowrap">
+                                    <CodingStatusBadge coded={response.coded} />
+                                  </td>
+
+                                  {/* Action button */}
+                                  <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewResponse(response.id || (response as any)._id)}
+                                      className="text-xs font-medium"
+                                    >
+                                      {response.coded ? 'View Coding' : 'Code Response'}
+                                    </Button>
+                                  </td>
+                                </tr>
+                              </React.Fragment>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
 
-                    {/* Pagination */}
-                    {totalPages > 1 && (
-                      <div className="flex justify-center items-center gap-2 mt-6">
+                    {/* Bottom Pagination Controls (Requirement 1) */}
+                    <div className="py-4 px-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/50">
+                      <div className="text-xs font-semibold text-gray-600">
+                        {totalResponses === 0 ? 'Viewing 0 of 0 total' : `Viewing ${viewingStart}–${viewingEnd} of ${totalResponses} total`}
+                      </div>
+                      <div className="flex items-center gap-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                          disabled={currentPage === 1}
+                          disabled={currentPage === 1 || loading}
+                          className="text-xs px-3 py-1.5"
                         >
-                          Previous
+                          ← Previous 10
                         </Button>
-                        <span className="text-xs text-gray-600 font-medium">
-                          Page {currentPage} of {totalPages}
+                        <span className="text-xs font-semibold text-gray-600 px-2">
+                          Page {currentPage} of {totalPages || 1}
                         </span>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                          disabled={currentPage === totalPages}
+                          disabled={currentPage >= totalPages || loading}
+                          className="text-xs px-3 py-1.5"
                         >
-                          Next
+                          Next 10 →
                         </Button>
                       </div>
-                    )}
+                    </div>
                   </>
                 )}
               </CardBody>
@@ -805,7 +874,7 @@ function ConditionBadge({ condition }: { condition: string }) {
   const isAnonymous = condition === 'anonymous';
   return (
     <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
-      isAnonymous ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+      isAnonymous ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
     }`}>
       {isAnonymous ? 'Anonymous' : 'Identifiable'}
     </span>
@@ -817,7 +886,7 @@ function CodingStatusBadge({ coded }: { coded: boolean }) {
     <span className={`inline-flex px-2.5 py-0.5 text-xs font-bold uppercase rounded-full ${
       coded ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-amber-100 text-amber-800 border border-amber-200'
     }`}>
-      {coded ? 'Coded' : 'Uncoded'}
+      {coded ? 'CODED' : 'UNCODED'}
     </span>
   );
 }
