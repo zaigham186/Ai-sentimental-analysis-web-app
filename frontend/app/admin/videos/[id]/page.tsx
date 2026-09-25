@@ -542,7 +542,9 @@ export default function VideoDetailPage() {
                       {video.validatedBy && (
                         <div>
                           <dt className="text-sm font-medium text-gray-500">Validated By</dt>
-                          <dd className="text-base text-gray-900">{video.validatedBy.name}</dd>
+                          <dd className="text-base text-gray-900">
+                            {typeof video.validatedBy === 'object' ? (video.validatedBy?.name || 'Administrator') : video.validatedBy}
+                          </dd>
                         </div>
                       )}
                     </dl>

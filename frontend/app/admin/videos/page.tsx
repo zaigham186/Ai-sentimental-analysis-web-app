@@ -301,11 +301,14 @@ export default function AdminVideosPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Version
                       </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {videos.map((video) => (
-                      <tr key={video.id} className="hover:bg-gray-50">
+                      <tr key={video.id || (video as any)._id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">
                           {video.order}
                         </td>
@@ -326,6 +329,16 @@ export default function AdminVideosPage() {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
                           v{video.version}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/admin/videos/${video.id || (video as any)._id}`)}
+                            className="text-xs"
+                          >
+                            Manage
+                          </Button>
                         </td>
                       </tr>
                     ))}

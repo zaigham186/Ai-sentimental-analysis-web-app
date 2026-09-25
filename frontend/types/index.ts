@@ -13,6 +13,7 @@ export interface ApiResponse<T = any> {
   errors?: Array<{
     field: string;
     message: string;
+
   }>;
 }
 
@@ -294,23 +295,32 @@ export interface VideoStatistics {
  */
 export interface ResponseWithCoding {
   id: string;
+  _id?: string;
   participant: {
+    _id?: string;
     username: string;
     name: string;
     condition: 'anonymous' | 'identifiable';
     displayName?: string;
+    status?: string;
   };
   video: {
-    id: string;
+    id?: string;
+    _id?: string;
     title: string;
     order: number;
+    topic?: string;
+    description?: string;
   };
   responseText: string;
   responseTime?: number;
   submittedAt: string;
   coded: boolean;
-  codingId?: string;
+  codingId?: string | null;
   codingStatus: 'CODED' | 'UNCODED';
+  coding?: any;
+  hasAISuggestion?: boolean;
+  reviewStatus?: string | null;
 }
 
 /**
@@ -747,11 +757,13 @@ export interface ParticipantDetail {
       type?: string;
       severity?: number;
     };
-    codedBy: {
-      name: string;
-      username: string;
-    };
-    codedAt: string;
+    codedBy?: {
+      name?: string;
+      username?: string;
+    } | null;
+    codedAt?: string | null;
+    reviewStatus?: string | null;
+    aiCoding?: any;
   }>;
   stats: {
     totalResponses: number;
@@ -779,6 +791,7 @@ export interface ParticipantStatistics {
  */
 export interface ResponseWithDetails {
   _id: string;
+  id?: string;
   participant: {
     _id: string;
     username: string;
@@ -788,6 +801,7 @@ export interface ResponseWithDetails {
   };
   video: {
     _id: string;
+    id?: string;
     title: string;
     order: number;
     topic: string;
@@ -797,6 +811,10 @@ export interface ResponseWithDetails {
   submittedAt: string;
   coding: Coding | null;
   coded: boolean;
+  codingStatus?: 'CODED' | 'UNCODED';
+  codingId?: string | null;
+  hasAISuggestion?: boolean;
+  reviewStatus?: string | null;
 }
 
 export interface ResponseManagementDetail {

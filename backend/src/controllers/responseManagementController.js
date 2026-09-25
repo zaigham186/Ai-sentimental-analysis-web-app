@@ -75,8 +75,22 @@ const getResponseById = async (req, res) => {
 const getStatistics = async (req, res) => {
   try {
     const total = await VideoResponse.countDocuments();
-    const coded = await Coding.countDocuments({ coderRole: 'primary' });
-    const uncoded = total - coded;
+    const coded = await Coding.countDocuments({
+      coderRole: 'primary',
+      $or: [
+        { reviewStatus: { $in: ['reviewed', 'approved'] } },
+        { codedBy: { $exists: true, $ne: null } },
+        {
+          reviewStatus: { $in: ['reviewed', 'approved', null] },
+          $or: [
+            { sentiment: { $exists: true, $ne: null } },
+            { 'aggression.category': { $exists: true, $ne: null } },
+            { 'cyberbullying.present': { $exists: true, $ne: null } }
+          ]
+        }
+      ]
+    });
+    const uncoded = Math.max(0, total - coded);
 
     // By condition
     const anonymousParticipants = await Participant.find({ condition: 'anonymous' }).distinct('_id');

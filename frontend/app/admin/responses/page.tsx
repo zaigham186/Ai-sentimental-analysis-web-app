@@ -522,7 +522,14 @@ export default function AdminResponsesPage() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleViewResponse(response._id || (response as any).id)}
+                                  onClick={() => {
+                                    const targetId = response._id || (response as any).id;
+                                    if (response.coded) {
+                                      handleViewResponse(targetId);
+                                    } else {
+                                      router.push(`/admin/coding/${targetId}`);
+                                    }
+                                  }}
                                   className="text-xs font-medium"
                                 >
                                   {response.coded ? 'View Coding' : 'Code Response'}

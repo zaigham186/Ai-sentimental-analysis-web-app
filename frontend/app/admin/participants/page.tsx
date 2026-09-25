@@ -280,7 +280,7 @@ export default function AdminParticipantsPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600">
-                            {new Date(participant.createdAt).toLocaleDateString()}
+                            {participant.createdAt ? new Date(participant.createdAt).toLocaleDateString() : 'N/A'}
                           </td>
                           <td className="px-4 py-3 text-sm text-right">
                             <Button

@@ -73,11 +73,11 @@ export default function CodingDetailPage() {
       // Check for AI suggestion
       const coding = responseResponse.data.coding;
       if (coding) {
-        if (coding.aiCoding && coding.reviewStatus === 'pending') {
+        if (coding.aiCoding && (coding.reviewStatus === 'pending' || coding.reviewStatus === 'pending_review' || coding.reviewStatus === 'ai_generated')) {
           setAiSuggestion(coding.aiCoding);
           setHasUnreviewedAI(true);
           setShowAISuggestion(true);
-        } else if (coding.aiCoding && coding.reviewStatus === 'reviewed') {
+        } else if (coding.aiCoding && (coding.reviewStatus === 'reviewed' || coding.reviewStatus === 'approved')) {
           setAiSuggestion(coding.aiCoding);
           setHasUnreviewedAI(false);
           setShowAISuggestion(true);
@@ -313,9 +313,9 @@ export default function CodingDetailPage() {
       }
 
       const codingId = responseDetail?.coding?.id || responseDetail?.coding?._id;
-      if (responseDetail?.coded && codingId) {
+      if (codingId) {
         await api.admin.coding.update(codingId, codingData);
-        setSuccess('Research coding updated successfully.');
+        setSuccess('Research coding saved successfully.');
       } else {
         await api.admin.coding.create(codingData);
         setSuccess('Research coding created successfully.');

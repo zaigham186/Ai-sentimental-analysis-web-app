@@ -145,9 +145,9 @@ export default function AdminExportPage() {
             <div>
               <strong>⚠️ Data Quality Issues Detected ({dataQuality.issueCount})</strong>
               <ul className="mt-2 space-y-1">
-                {dataQuality.issues.map((issue, idx) => (
+                {dataQuality.issues?.map((issue, idx) => (
                   <li key={idx} className="text-sm">
-                    • <strong>[{issue.severity.toUpperCase()}]</strong> {issue.message}
+                    • <strong>[{(issue.severity || 'info').toUpperCase()}]</strong> {issue.message}
                   </li>
                 ))}
               </ul>

@@ -269,7 +269,12 @@ export default function ParticipantDetailPage() {
                     </div>
                     <div className="mt-3 pt-3 border-t border-gray-200">
                       <p className="text-xs text-gray-500">
-                        Coded by {coding.codedBy.name} on {new Date(coding.codedAt).toLocaleString()}
+                        {coding.codedBy?.name 
+                          ? `Coded by ${coding.codedBy.name}${coding.codedBy.username ? ` (@${coding.codedBy.username})` : ''}`
+                          : (coding as any).aiCoding 
+                            ? 'AI Generated Suggestion'
+                            : 'Coder: System / Unassigned'}
+                        {coding.codedAt ? ` on ${new Date(coding.codedAt).toLocaleString()}` : ''}
                       </p>
                     </div>
                   </div>

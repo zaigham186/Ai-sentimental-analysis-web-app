@@ -68,10 +68,15 @@ const getResponseById = async (req, res) => {
     // Get coding if exists
     const coding = await Coding.findPrimaryCoding(response._id);
 
-    // FIXED: Check if actually coded (reviewed) vs just AI suggestion
+    // Check if actually coded (human review or final coding dimensions)
     const isActuallyCoded = coding && (
       coding.reviewStatus === 'reviewed' ||
-      (coding.reviewStatus === null && (coding.sentiment || coding.aggression?.category || coding.cyberbullying?.present !== undefined))
+      coding.reviewStatus === 'approved' ||
+      Boolean(coding.codedBy) ||
+      ((coding.reviewStatus === null || coding.reviewStatus === undefined || coding.reviewStatus === 'pending') &&
+        Boolean(coding.sentiment || coding.aggression?.category || (coding.cyberbullying?.present !== undefined && coding.cyberbullying?.present !== null)) &&
+        !Boolean(coding.aiCoding && !coding.codedBy && (coding.reviewStatus === 'pending' || coding.reviewStatus === 'pending_review' || coding.reviewStatus === 'ai_generated'))
+      )
     );
 
     const responseObj = response.toObject();
@@ -134,11 +139,34 @@ const createCoding = async (req, res) => {
     }
 
     // Check if already coded
-    const existingCoding = await Coding.findPrimaryCoding(responseId);
+    let existingCoding = await Coding.findPrimaryCoding(responseId);
     if (existingCoding) {
-      return res.status(400).json({
-        success: false,
-        message: 'Response already has primary coding. Use update endpoint to modify.'
+      // Update existing primary coding with researcher's final decisions
+      existingCoding.sentiment = sentiment !== undefined ? sentiment : existingCoding.sentiment;
+      if (aggression) {
+        existingCoding.aggression = { ...existingCoding.aggression?.toObject?.() || {}, ...aggression };
+      }
+      if (cyberbullying) {
+        existingCoding.cyberbullying = { ...existingCoding.cyberbullying?.toObject?.() || {}, ...cyberbullying };
+      }
+      if (notes !== undefined) existingCoding.notes = notes;
+      if (confidence !== undefined) existingCoding.confidence = confidence;
+      if (codingVersion !== undefined) existingCoding.codingVersion = codingVersion;
+      existingCoding.codedBy = req.admin.id;
+      existingCoding.coderRole = 'primary';
+      existingCoding.reviewStatus = 'reviewed';
+      if (existingCoding.aiCoding && !existingCoding.reviewAction) {
+        existingCoding.reviewAction = 'modified';
+      }
+      existingCoding.codedAt = new Date();
+
+      await existingCoding.save();
+      await existingCoding.populate('codedBy', 'name username');
+
+      return res.status(200).json({
+        success: true,
+        message: 'Coding saved successfully',
+        data: existingCoding
       });
     }
 
@@ -153,6 +181,7 @@ const createCoding = async (req, res) => {
       codingVersion: codingVersion || '1.0',
       codedBy: req.admin.id,
       coderRole: 'primary',
+      reviewStatus: 'reviewed',
       codedAt: new Date()
     });
 
@@ -223,7 +252,9 @@ const updateCoding = async (req, res) => {
     if (notes !== undefined) coding.notes = notes;
     if (confidence !== undefined) coding.confidence = confidence;
 
-    // Update timestamp
+    // Update review status and coder info
+    coding.reviewStatus = 'reviewed';
+    coding.codedBy = req.admin.id;
     coding.codedAt = new Date();
 
     await coding.save();
@@ -301,15 +332,20 @@ const getStatistics = async (req, res) => {
   try {
     const totalResponses = await VideoResponse.countDocuments();
 
-    // FIXED: Only count codings that are REVIEWED (have final human-approved coding)
-    // NOT just pending AI suggestions
+    // Only count codings that are human reviewed/approved or coded by researcher
     const codedResponses = await Coding.countDocuments({
       coderRole: 'primary',
-      reviewStatus: { $in: ['reviewed', null] }, // null for old codings without reviewStatus
       $or: [
-        { sentiment: { $exists: true, $ne: null } },
-        { 'aggression.category': { $exists: true, $ne: null } },
-        { 'cyberbullying.present': { $exists: true, $ne: null } }
+        { reviewStatus: { $in: ['reviewed', 'approved'] } },
+        { codedBy: { $exists: true, $ne: null } },
+        {
+          reviewStatus: { $in: ['reviewed', 'approved', null] },
+          $or: [
+            { sentiment: { $exists: true, $ne: null } },
+            { 'aggression.category': { $exists: true, $ne: null } },
+            { 'cyberbullying.present': { $exists: true, $ne: null } }
+          ]
+        }
       ]
     });
 
@@ -320,7 +356,7 @@ const getStatistics = async (req, res) => {
       {
         $match: {
           coderRole: 'primary',
-          reviewStatus: { $in: ['reviewed', null] },
+          reviewStatus: { $in: ['reviewed', 'approved', null] },
           'aggression.category': { $exists: true, $ne: null }
         }
       },
@@ -336,7 +372,7 @@ const getStatistics = async (req, res) => {
       {
         $match: {
           coderRole: 'primary',
-          reviewStatus: { $in: ['reviewed', null] },
+          reviewStatus: { $in: ['reviewed', 'approved', null] },
           'cyberbullying.present': { $exists: true, $ne: null }
         }
       },

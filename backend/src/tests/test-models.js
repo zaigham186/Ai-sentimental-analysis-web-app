@@ -76,12 +76,20 @@ async function runTests() {
 
 async function cleanTestData() {
   console.log('Cleaning test data...');
+  const testParticipants = await models.Participant.find({ username: /^test/ }).select('_id');
+  const testParticipantIds = testParticipants.map(p => p._id);
+  if (testParticipantIds.length > 0) {
+    const testResponses = await models.VideoResponse.find({ participant: { $in: testParticipantIds } }).select('_id');
+    const testResponseIds = testResponses.map(r => r._id);
+    if (testResponseIds.length > 0) {
+      await models.Coding.deleteMany({ response: { $in: testResponseIds } });
+    }
+    await models.VideoResponse.deleteMany({ participant: { $in: testParticipantIds } });
+    await models.QuestionnaireResponse.deleteMany({ participant: { $in: testParticipantIds } });
+  }
   await models.Participant.deleteMany({ username: /^test/ });
   await models.Video.deleteMany({ title: /^TEST/ });
-  await models.VideoResponse.deleteMany({});
   await models.Questionnaire.deleteMany({ questionnaireId: /^TEST/ });
-  await models.QuestionnaireResponse.deleteMany({});
-  await models.Coding.deleteMany({});
   await models.Admin.deleteMany({ username: /^test/ });
   await models.AuditLog.deleteMany({ actorUsername: /^test/ });
   console.log('Test data cleaned\n');

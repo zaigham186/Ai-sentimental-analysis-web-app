@@ -52,13 +52,31 @@ async function buildResponseQueryAndResults(queryParams = {}) {
 
     // Requirement: Show ALL responses of that participant across all videos when searched
     // Also allow fallback matching on responseText if search doesn't match a participant name
-    if (matchingParticipantIds.length > 0) {
-      query.$or = [
-        { participant: { $in: matchingParticipantIds } },
-        { responseText: searchRegex }
-      ];
+    if (condition) {
+      const conditionParticipantIds = await Participant.find({ condition }).distinct('_id');
+      if (matchingParticipantIds.length > 0) {
+        query.$and = [
+          { participant: { $in: conditionParticipantIds } },
+          {
+            $or: [
+              { participant: { $in: matchingParticipantIds } },
+              { responseText: searchRegex }
+            ]
+          }
+        ];
+      } else {
+        query.participant = { $in: conditionParticipantIds };
+        query.responseText = searchRegex;
+      }
     } else {
-      query.responseText = searchRegex;
+      if (matchingParticipantIds.length > 0) {
+        query.$or = [
+          { participant: { $in: matchingParticipantIds } },
+          { responseText: searchRegex }
+        ];
+      } else {
+        query.responseText = searchRegex;
+      }
     }
   } else if (condition) {
     // Condition filter without search
@@ -79,11 +97,7 @@ async function buildResponseQueryAndResults(queryParams = {}) {
       .select('_id');
 
     const rangeIds = rangeParticipants.map(p => p._id);
-    if (query.participant) {
-      query.participant = { $in: rangeIds };
-    } else {
-      query.participant = { $in: rangeIds };
-    }
+    query.participant = { $in: rangeIds };
   }
 
   // 3. Filter by video
@@ -118,11 +132,11 @@ async function buildResponseQueryAndResults(queryParams = {}) {
     const isActuallyCoded = coding && (
       coding.reviewStatus === 'reviewed' ||
       coding.reviewStatus === 'approved' ||
-      (coding.reviewStatus === null && (
-        coding.sentiment ||
-        coding.aggression?.category ||
-        coding.cyberbullying?.present !== undefined
-      ))
+      Boolean(coding.codedBy) ||
+      ((coding.reviewStatus === null || coding.reviewStatus === undefined || coding.reviewStatus === 'pending') &&
+        Boolean(coding.sentiment || coding.aggression?.category || (coding.cyberbullying?.present !== undefined && coding.cyberbullying?.present !== null)) &&
+        !Boolean(coding.aiCoding && !coding.codedBy && (coding.reviewStatus === 'pending' || coding.reviewStatus === 'pending_review' || coding.reviewStatus === 'ai_generated'))
+      )
     );
 
     const respObj = response.toObject();

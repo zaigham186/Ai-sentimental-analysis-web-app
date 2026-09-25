@@ -208,30 +208,30 @@ export default function AdminResearchAnalyticsPage() {
     return null;
   }
 
-  // Pre-format chart data
+  // Pre-format chart data safely with fallbacks
   const sentimentChartData = sentiment ? [
-    { name: 'Positive', count: sentiment.distribution.counts.positive || 0, percentage: sentiment.distribution.percentages.positive || 0, fill: SENTIMENT_COLORS.positive },
-    { name: 'Neutral', count: sentiment.distribution.counts.neutral || 0, percentage: sentiment.distribution.percentages.neutral || 0, fill: SENTIMENT_COLORS.neutral },
-    { name: 'Negative', count: sentiment.distribution.counts.negative || 0, percentage: sentiment.distribution.percentages.negative || 0, fill: SENTIMENT_COLORS.negative },
-    { name: 'Mixed', count: sentiment.distribution.counts.mixed || 0, percentage: sentiment.distribution.percentages.mixed || 0, fill: SENTIMENT_COLORS.mixed }
+    { name: 'Positive', count: sentiment.distribution?.counts?.positive || 0, percentage: sentiment.distribution?.percentages?.positive || 0, fill: SENTIMENT_COLORS.positive },
+    { name: 'Neutral', count: sentiment.distribution?.counts?.neutral || 0, percentage: sentiment.distribution?.percentages?.neutral || 0, fill: SENTIMENT_COLORS.neutral },
+    { name: 'Negative', count: sentiment.distribution?.counts?.negative || 0, percentage: sentiment.distribution?.percentages?.negative || 0, fill: SENTIMENT_COLORS.negative },
+    { name: 'Mixed', count: sentiment.distribution?.counts?.mixed || 0, percentage: sentiment.distribution?.percentages?.mixed || 0, fill: SENTIMENT_COLORS.mixed }
   ] : [];
 
   const cbChartData = cyberbullying ? [
-    { name: 'Cyberbullying', value: cyberbullying.presenceDistribution.counts.present || 0, fill: CYBERBULLYING_COLORS.present },
-    { name: 'Not Cyberbullying', value: cyberbullying.presenceDistribution.counts.absent || 0, fill: CYBERBULLYING_COLORS.absent }
+    { name: 'Cyberbullying', value: cyberbullying.presenceDistribution?.counts?.present || 0, fill: CYBERBULLYING_COLORS.present },
+    { name: 'Not Cyberbullying', value: cyberbullying.presenceDistribution?.counts?.absent || 0, fill: CYBERBULLYING_COLORS.absent }
   ] : [];
 
   const aggressionChartData = aggression ? [
-    { category: 'None', count: aggression.categoryDistribution.counts.none || 0, fill: AGGRESSION_COLORS.none },
-    { category: 'Mild', count: aggression.categoryDistribution.counts.mild || 0, fill: AGGRESSION_COLORS.mild },
-    { category: 'Moderate', count: aggression.categoryDistribution.counts.moderate || 0, fill: AGGRESSION_COLORS.moderate },
-    { category: 'Severe', count: aggression.categoryDistribution.counts.severe || 0, fill: AGGRESSION_COLORS.severe }
+    { category: 'None', count: aggression.categoryDistribution?.counts?.none || 0, fill: AGGRESSION_COLORS.none },
+    { category: 'Mild', count: aggression.categoryDistribution?.counts?.mild || 0, fill: AGGRESSION_COLORS.mild },
+    { category: 'Moderate', count: aggression.categoryDistribution?.counts?.moderate || 0, fill: AGGRESSION_COLORS.moderate },
+    { category: 'Severe', count: aggression.categoryDistribution?.counts?.severe || 0, fill: AGGRESSION_COLORS.severe }
   ] : [];
 
-  const toxicitySubcatData = toxicity ? Object.entries(toxicity.subcategories).map(([key, val]) => ({
+  const toxicitySubcatData = (toxicity && toxicity.subcategories) ? Object.entries(toxicity.subcategories).map(([key, val]) => ({
     name: key.replace(/_/g, ' ').toUpperCase(),
-    count: val.count,
-    percentage: val.percentage
+    count: (val as any)?.count ?? 0,
+    percentage: (val as any)?.percentage ?? 0
   })) : [];
 
   return (
@@ -1037,28 +1037,30 @@ export default function AdminResearchAnalyticsPage() {
                           </td>
                           <td className="py-2 px-3">
                             <span className={`px-2 py-0.5 rounded font-semibold text-[10px] ${
-                              row.finalCoding.sentiment === 'positive' ? 'bg-emerald-100 text-emerald-800' :
-                              row.finalCoding.sentiment === 'negative' ? 'bg-red-100 text-red-800' :
-                              row.finalCoding.sentiment === 'neutral' ? 'bg-gray-100 text-gray-800' :
+                              row.finalCoding?.sentiment === 'positive' ? 'bg-emerald-100 text-emerald-800' :
+                              row.finalCoding?.sentiment === 'negative' ? 'bg-red-100 text-red-800' :
+                              row.finalCoding?.sentiment === 'neutral' ? 'bg-gray-100 text-gray-800' :
                               'bg-amber-100 text-amber-800'
                             }`}>
-                              {row.finalCoding.sentiment}
+                              {row.finalCoding?.sentiment || 'uncoded'}
                             </span>
                           </td>
-                          <td className="py-2 px-3 capitalize">{row.finalCoding.aggressionCategory}</td>
+                          <td className="py-2 px-3 capitalize">{row.finalCoding?.aggressionCategory || 'none'}</td>
                           <td className="py-2 px-3">
                             <span className={`px-2 py-0.5 rounded font-semibold text-[10px] ${
-                              row.finalCoding.cyberbullyingPresent ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'
+                              row.finalCoding?.cyberbullyingPresent ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'
                             }`}>
-                              {row.finalCoding.cyberbullyingPresent !== null ? (row.finalCoding.cyberbullyingPresent ? 'Yes' : 'No') : 'Pending'}
+                              {row.finalCoding?.cyberbullyingPresent !== null && row.finalCoding?.cyberbullyingPresent !== undefined
+                                ? (row.finalCoding.cyberbullyingPresent ? 'Yes' : 'No') 
+                                : 'Pending'}
                             </span>
                           </td>
                           <td className="py-2 px-3 text-gray-500">
-                            Sent: {row.aiSuggestion.sentiment} | CB: {row.aiSuggestion.cyberbullying !== null ? (row.aiSuggestion.cyberbullying ? 'Yes' : 'No') : 'N/A'}
+                            Sent: {row.aiSuggestion?.sentiment || 'N/A'} | CB: {row.aiSuggestion?.cyberbullying !== null && row.aiSuggestion?.cyberbullying !== undefined ? (row.aiSuggestion.cyberbullying ? 'Yes' : 'No') : 'N/A'}
                           </td>
                           <td className="py-2 px-3">
                             <span className="px-2 py-0.5 rounded font-medium text-[10px] bg-gray-100 text-gray-700">
-                              {row.reviewStatus}
+                              {row.reviewStatus || 'pending'}
                             </span>
                           </td>
                         </tr>

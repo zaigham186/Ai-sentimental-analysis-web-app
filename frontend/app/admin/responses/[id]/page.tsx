@@ -296,7 +296,11 @@ export default function ResponseDetailPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                     <div>
                       <span className="font-medium">Coded by:</span>{' '}
-                      {coding.codedBy ? `${coding.codedBy.name} (@${coding.codedBy.username})` : 'System / Unassigned'}
+                      {coding.codedBy 
+                        ? (typeof coding.codedBy === 'object' && coding.codedBy?.name 
+                            ? `${coding.codedBy.name}${coding.codedBy.username ? ` (@${coding.codedBy.username})` : ''}` 
+                            : String(coding.codedBy))
+                        : ((coding as any).aiCoding ? 'AI Generated Suggestion' : 'System / Unassigned')}
                     </div>
                     <div>
                       <span className="font-medium">Role:</span>{' '}
