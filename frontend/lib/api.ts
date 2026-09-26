@@ -403,6 +403,8 @@ export const api = {
         participantRangeStart?: number;
         participantRangeEnd?: number;
         participantPageSize?: number;
+        participantIndex?: number;
+        participantNumber?: number;
       }) => {
         const queryParams = new URLSearchParams();
         if (params?.coded !== undefined) queryParams.append('coded', params.coded.toString());
@@ -416,6 +418,8 @@ export const api = {
         if (params?.participantRangeStart) queryParams.append('participantRangeStart', params.participantRangeStart.toString());
         if (params?.participantRangeEnd) queryParams.append('participantRangeEnd', params.participantRangeEnd.toString());
         if (params?.participantPageSize) queryParams.append('participantPageSize', params.participantPageSize.toString());
+        if (params?.participantIndex) queryParams.append('participantIndex', params.participantIndex.toString());
+        if (params?.participantNumber) queryParams.append('participantNumber', params.participantNumber.toString());
         const query = queryParams.toString();
         return fetchAPI(`/api/admin/coding/responses${query ? `?${query}` : ''}`);
       },
@@ -692,6 +696,8 @@ export const api = {
         participantRangeStart?: number;
         participantRangeEnd?: number;
         participantPageSize?: number;
+        participantIndex?: number;
+        participantNumber?: number;
       }) => {
         const queryParams = new URLSearchParams();
         if (params?.condition) queryParams.append('condition', params.condition);
@@ -705,6 +711,8 @@ export const api = {
         if (params?.participantRangeStart) queryParams.append('participantRangeStart', params.participantRangeStart.toString());
         if (params?.participantRangeEnd) queryParams.append('participantRangeEnd', params.participantRangeEnd.toString());
         if (params?.participantPageSize) queryParams.append('participantPageSize', params.participantPageSize.toString());
+        if (params?.participantIndex) queryParams.append('participantIndex', params.participantIndex.toString());
+        if (params?.participantNumber) queryParams.append('participantNumber', params.participantNumber.toString());
         const query = queryParams.toString();
         return fetchAPI(`/api/admin/responses${query ? `?${query}` : ''}`);
       },

@@ -18,18 +18,39 @@ async function buildResponseQueryAndResults(queryParams = {}) {
     sortBy = 'name',
     sortOrder = 'asc',
     participantRangeStart,
-    participantRangeEnd
+    participantRangeEnd,
+    participantIndex,
+    participantNumber
   } = queryParams;
 
   const parsedPage = Math.max(1, parseInt(page, 10) || 1);
   const parsedLimit = Math.max(1, parseInt(limit, 10) || 10);
   const trimmedSearch = typeof search === 'string' ? search.trim() : '';
 
+  // Retrieve all active participants who have video responses (respecting condition filter if set)
+  const pIdsWithResponses = await VideoResponse.distinct('participant');
+  const pFilter = { _id: { $in: pIdsWithResponses } };
+  if (condition) {
+    pFilter.condition = condition;
+  }
+  const allActiveParticipants = await Participant.find(pFilter)
+    .sort({ name: 1, createdAt: 1 })
+    .lean();
+
+  const participantsList = allActiveParticipants.map((p, idx) => ({
+    index: idx + 1,
+    id: p._id.toString(),
+    name: p.name || 'Unnamed Participant',
+    username: p.username || 'unknown',
+    condition: p.condition || 'anonymous'
+  }));
+
   // Base Mongo query for VideoResponse
   const query = {};
 
   // 1. Participant search / condition filtering
   let matchingParticipantIds = null;
+  let matchedParticipantIndex = null;
 
   if (trimmedSearch) {
     const escapedSearch = trimmedSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -49,6 +70,13 @@ async function buildResponseQueryAndResults(queryParams = {}) {
 
     const matchingParticipants = await Participant.find(participantFilter).select('_id');
     matchingParticipantIds = matchingParticipants.map(p => p._id);
+
+    // If search matched a single participant, find their index in participantsList
+    if (matchingParticipantIds.length === 1) {
+      const matchedIdStr = matchingParticipantIds[0].toString();
+      const found = participantsList.find(p => p.id === matchedIdStr);
+      if (found) matchedParticipantIndex = found.index;
+    }
 
     // Requirement: Show ALL responses of that participant across all videos when searched
     // Also allow fallback matching on responseText if search doesn't match a participant name
@@ -78,26 +106,32 @@ async function buildResponseQueryAndResults(queryParams = {}) {
         query.responseText = searchRegex;
       }
     }
-  } else if (condition) {
-    // Condition filter without search
-    const participantsInCondition = await Participant.find({ condition }).distinct('_id');
-    query.participant = { $in: participantsInCondition };
-  }
+  } else {
+    // 2. Participant index / navigation (when not searching)
+    const rawParticipantIndex = participantIndex || participantNumber || 
+      (participantRangeStart && participantRangeEnd && parseInt(participantRangeStart, 10) === parseInt(participantRangeEnd, 10) ? participantRangeStart : null);
 
-  // 2. Legacy participant range (only when not searching)
-  if (participantRangeStart && participantRangeEnd && !trimmedSearch) {
-    const start = Math.max(1, parseInt(participantRangeStart, 10));
-    const end = Math.max(start, parseInt(participantRangeEnd, 10));
-    const pQuery = condition ? { condition } : {};
+    if (rawParticipantIndex && participantsList.length > 0) {
+      let pIdx = parseInt(rawParticipantIndex, 10);
+      if (isNaN(pIdx) || pIdx < 1) pIdx = 1;
+      if (pIdx > participantsList.length) pIdx = participantsList.length;
 
-    const rangeParticipants = await Participant.find(pQuery)
-      .sort({ name: 1, createdAt: 1 })
-      .skip(start - 1)
-      .limit(end - start + 1)
-      .select('_id');
-
-    const rangeIds = rangeParticipants.map(p => p._id);
-    query.participant = { $in: rangeIds };
+      const selectedTarget = allActiveParticipants[pIdx - 1];
+      if (selectedTarget) {
+        query.participant = selectedTarget._id;
+        matchedParticipantIndex = pIdx;
+      }
+    } else if (participantRangeStart && participantRangeEnd) {
+      // Legacy participant range
+      const start = Math.max(1, parseInt(participantRangeStart, 10));
+      const end = Math.min(participantsList.length, Math.max(start, parseInt(participantRangeEnd, 10)));
+      const rangeSlice = allActiveParticipants.slice(start - 1, end);
+      query.participant = { $in: rangeSlice.map(p => p._id) };
+    } else if (condition) {
+      // Condition filter without search or participantIndex
+      const participantsInCondition = await Participant.find({ condition }).distinct('_id');
+      query.participant = { $in: participantsInCondition };
+    }
   }
 
   // 3. Filter by video
@@ -231,8 +265,11 @@ async function buildResponseQueryAndResults(queryParams = {}) {
   const startIndex = (safePage - 1) * parsedLimit;
   const paginatedResponses = enrichedResponses.slice(startIndex, startIndex + parsedLimit);
 
-  // Total participant count for metadata
-  const totalParticipants = await Participant.countDocuments(condition ? { condition } : {});
+  // Current participant info if participant-scoped or search matched
+  const activeParticipantIndex = matchedParticipantIndex || null;
+  const currentParticipant = activeParticipantIndex && participantsList[activeParticipantIndex - 1]
+    ? participantsList[activeParticipantIndex - 1]
+    : null;
 
   return {
     responses: paginatedResponses,
@@ -243,7 +280,10 @@ async function buildResponseQueryAndResults(queryParams = {}) {
       pages,
       from: total === 0 ? 0 : startIndex + 1,
       to: Math.min(startIndex + parsedLimit, total),
-      totalParticipants,
+      totalParticipants: participantsList.length,
+      currentParticipantIndex: activeParticipantIndex,
+      currentParticipant,
+      participantsList,
       participantRangeStart: participantRangeStart ? parseInt(participantRangeStart, 10) : null,
       participantRangeEnd: participantRangeEnd ? parseInt(participantRangeEnd, 10) : null
     }

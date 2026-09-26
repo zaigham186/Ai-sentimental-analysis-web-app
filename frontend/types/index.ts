@@ -833,6 +833,28 @@ export interface ResponseStatistics {
   };
 }
 
+export interface ParticipantNavInfo {
+  index: number;
+  id: string;
+  name: string;
+  username: string;
+  condition: string;
+  responseCount?: number;
+}
+
+export interface ResponsePaginationData {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+  from: number;
+  to: number;
+  totalParticipants?: number;
+  currentParticipantIndex?: number | null;
+  currentParticipant?: ParticipantNavInfo | null;
+  participantsList?: ParticipantNavInfo[];
+}
+
 // ============================================================================
 // PHASE 7: RESEARCH ANALYTICS & REPORTING TYPES
 // ============================================================================

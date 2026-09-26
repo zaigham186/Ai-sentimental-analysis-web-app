@@ -8,7 +8,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { api } from '@/lib/api';
-import type { Admin, ResponseWithDetails, ResponseStatistics } from '@/types';
+import type { Admin, ResponseWithDetails, ResponseStatistics, ParticipantNavInfo } from '@/types';
 
 /**
  * Response Management Page
@@ -33,7 +33,17 @@ export default function AdminResponsesPage() {
   // Default: participant name A-Z, secondary: video number ascending
   const [sortByOption, setSortByOption] = useState<string>('name_asc');
 
-  // Pagination (Requirement 1: 10 per page)
+  // Navigation mode: 'participant' (default: navigate participant by participant) or 'all' (raw responses paged)
+  const [viewMode, setViewMode] = useState<'participant' | 'all'>('participant');
+
+  // Participant Navigation State (Participant #, previous/next, jump to typed number)
+  const [currentParticipantIndex, setCurrentParticipantIndex] = useState<number>(1);
+  const [inputParticipantNumber, setInputParticipantNumber] = useState<string>('1');
+  const [totalParticipants, setTotalParticipants] = useState<number>(0);
+  const [currentParticipant, setCurrentParticipant] = useState<ParticipantNavInfo | null>(null);
+  const [participantsList, setParticipantsList] = useState<ParticipantNavInfo[]>([]);
+
+  // Raw Response Pagination (Used when in 'all' viewMode or search)
   const pageSize = 10;
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -69,16 +79,26 @@ export default function AdminResponsesPage() {
       else if (sortByOption === 'condition_asc') { sortBy = 'condition'; sortOrder = 'asc'; }
       else if (sortByOption === 'condition_desc') { sortBy = 'condition'; sortOrder = 'desc'; }
 
-      // Build filter params (10 per page, Requirement 1 & 5)
+      // Build filter params
       const params: any = {
-        page: currentPage,
-        limit: pageSize,
         sortBy,
         sortOrder
       };
+
+      if (debouncedSearch.trim()) {
+        params.search = debouncedSearch.trim();
+        params.page = currentPage;
+        params.limit = pageSize;
+      } else if (viewMode === 'participant') {
+        params.participantIndex = currentParticipantIndex;
+        params.limit = 50; // Load all video responses for this participant
+      } else {
+        params.page = currentPage;
+        params.limit = pageSize;
+      }
+
       if (conditionFilter) params.condition = conditionFilter;
       if (codedFilter) params.coded = codedFilter;
-      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
 
       // Load responses and stats in parallel
       const [responsesResponse, statsResponse] = await Promise.all([
@@ -91,6 +111,20 @@ export default function AdminResponsesPage() {
       setTotalPages(resData.pagination?.pages || 1);
       setTotalResponses(resData.pagination?.total || 0);
       setStats(statsResponse.data);
+
+      if (resData.pagination?.totalParticipants !== undefined) {
+        setTotalParticipants(resData.pagination.totalParticipants);
+      }
+      if (resData.pagination?.participantsList) {
+        setParticipantsList(resData.pagination.participantsList);
+      }
+      if (resData.pagination?.currentParticipant) {
+        setCurrentParticipant(resData.pagination.currentParticipant);
+      }
+      if (resData.pagination?.currentParticipantIndex) {
+        setCurrentParticipantIndex(resData.pagination.currentParticipantIndex);
+        setInputParticipantNumber(String(resData.pagination.currentParticipantIndex));
+      }
     } catch (err: any) {
       if (err.message === 'Admin authentication required') {
         router.push('/admin/login');
@@ -100,7 +134,7 @@ export default function AdminResponsesPage() {
     } finally {
       setLoading(false);
     }
-  }, [conditionFilter, codedFilter, debouncedSearch, currentPage, pageSize, sortByOption, router]);
+  }, [conditionFilter, codedFilter, debouncedSearch, currentPage, pageSize, sortByOption, currentParticipantIndex, viewMode, router]);
 
   useEffect(() => {
     loadData();
@@ -123,7 +157,42 @@ export default function AdminResponsesPage() {
     router.push(`/admin/participants/${participantId}`);
   };
 
-  // Clear search helper (Requirement 2)
+  // Participant Navigation Helpers
+  const handlePrevParticipant = () => {
+    if (currentParticipantIndex > 1) {
+      const prev = currentParticipantIndex - 1;
+      setCurrentParticipantIndex(prev);
+      setInputParticipantNumber(String(prev));
+    }
+  };
+
+  const handleNextParticipant = () => {
+    if (currentParticipantIndex < totalParticipants) {
+      const next = currentParticipantIndex + 1;
+      setCurrentParticipantIndex(next);
+      setInputParticipantNumber(String(next));
+    }
+  };
+
+  const handleJumpToParticipant = () => {
+    const num = parseInt(inputParticipantNumber, 10);
+    if (isNaN(num) || num < 1) {
+      setInputParticipantNumber('1');
+      setCurrentParticipantIndex(1);
+      return;
+    }
+    const max = totalParticipants > 0 ? totalParticipants : 1;
+    const clamped = Math.min(num, max);
+    setInputParticipantNumber(String(clamped));
+    setCurrentParticipantIndex(clamped);
+  };
+
+  const handleSelectParticipant = (idx: number) => {
+    setCurrentParticipantIndex(idx);
+    setInputParticipantNumber(String(idx));
+  };
+
+  // Clear search helper
   const handleClearSearch = () => {
     setSearchQuery('');
     setDebouncedSearch('');
@@ -190,50 +259,183 @@ export default function AdminResponsesPage() {
           </div>
         )}
 
-        {/* 1. PAGINATION BAR (Requirement 1: 10 per page, "Viewing 1-10 of X total", Previous 10 / Next 10 buttons) */}
-        <Card className="mb-6 border border-gray-200 shadow-sm bg-white">
+        {/* PARTICIPANT RECORD & RANGE NAVIGATION BAR */}
+        <Card className="mb-6 border-2 border-blue-200 shadow-sm bg-gradient-to-r from-blue-50/80 via-indigo-50/50 to-white">
           <CardBody className="py-3 px-5">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-sm text-gray-700 flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-blue-700">
-                  {totalResponses === 0 ? 'Viewing 0 of 0 total' : `Viewing ${viewingStart}–${viewingEnd} of ${totalResponses} total`}
-                </span>
-                {debouncedSearch.trim() && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                    <span>Participant: "{debouncedSearch.trim()}" (All Videos)</span>
-                    <button
-                      onClick={handleClearSearch}
-                      className="text-blue-500 hover:text-blue-800 font-bold ml-1"
-                      title="Clear search"
-                    >
-                      ✕
-                    </button>
-                  </span>
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
+              {/* Left Side: Participant Record Number, Input, and Details */}
+              <div className="flex flex-wrap items-center gap-3">
+                {/* View Mode Toggle */}
+                <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5 shadow-sm text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewMode('participant');
+                      setCurrentPage(1);
+                    }}
+                    className={`px-2.5 py-1 rounded-md transition ${
+                      viewMode === 'participant' && !debouncedSearch.trim()
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    👤 By Participant
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewMode('all');
+                      setCurrentPage(1);
+                    }}
+                    className={`px-2.5 py-1 rounded-md transition ${
+                      viewMode === 'all' || debouncedSearch.trim()
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    📋 All Responses
+                  </button>
+                </div>
+
+                {viewMode === 'participant' && !debouncedSearch.trim() ? (
+                  <>
+                    {/* Participant Number Jump Input */}
+                    <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-blue-300 shadow-sm">
+                      <span className="text-xs font-bold uppercase tracking-wider text-gray-600">
+                        Participant #
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={totalParticipants || 1}
+                        value={inputParticipantNumber}
+                        onChange={(e) => setInputParticipantNumber(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleJumpToParticipant();
+                        }}
+                        onBlur={handleJumpToParticipant}
+                        className="w-12 text-center font-extrabold text-blue-700 text-sm py-0.5 px-1 border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none bg-blue-50/50"
+                        title="Type participant number (1 to total) and press Enter"
+                      />
+                      <span className="text-xs font-bold text-gray-500">
+                        of {totalParticipants || 0}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleJumpToParticipant}
+                        className="text-[11px] font-bold px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded transition shadow-sm"
+                        title="Jump to typed participant number"
+                      >
+                        Go
+                      </button>
+                    </div>
+
+                    {/* Participant Details Badge */}
+                    {currentParticipant && (
+                      <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-lg border border-gray-200 shadow-sm text-xs">
+                        <span className="font-bold text-gray-900">{currentParticipant.name}</span>
+                        <span className="text-gray-500 font-mono">@{currentParticipant.username}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                          currentParticipant.condition === 'anonymous'
+                            ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                            : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                        }`}>
+                          {currentParticipant.condition === 'anonymous' ? 'Anonymous' : 'Identifiable'}
+                        </span>
+                        <span className="text-blue-700 font-semibold bg-blue-50 px-2 py-0.5 rounded border border-blue-200 text-[11px]">
+                          {responses.length} responses
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Quick Jump Dropdown */}
+                    {participantsList.length > 0 && (
+                      <select
+                        value={currentParticipantIndex || 1}
+                        onChange={(e) => handleSelectParticipant(parseInt(e.target.value, 10))}
+                        className="text-xs py-1.5 px-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-700 shadow-sm max-w-[200px] truncate"
+                        title="Select participant from list"
+                      >
+                        {participantsList.map((p) => (
+                          <option key={p.id} value={p.index}>
+                            #{p.index}: {p.name} (@{p.username})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-700 flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-blue-700">
+                      {totalResponses === 0 ? 'Viewing 0 of 0 total' : `Viewing ${viewingStart}–${viewingEnd} of ${totalResponses} total`}
+                    </span>
+                    {debouncedSearch.trim() && (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                        <span>Search: "{debouncedSearch.trim()}"</span>
+                        <button
+                          onClick={handleClearSearch}
+                          className="text-blue-500 hover:text-blue-800 font-bold ml-1"
+                          title="Clear search"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
 
+              {/* Right Side: Previous / Next Navigation Buttons */}
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1 || loading}
-                  className="font-medium text-xs px-3 py-1.5"
-                >
-                  ← Previous 10
-                </Button>
-                <div className="text-xs font-semibold text-gray-600 px-2 min-w-[80px] text-center">
-                  Page {currentPage} of {totalPages || 1}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage >= totalPages || loading}
-                  className="font-medium text-xs px-3 py-1.5"
-                >
-                  Next 10 →
-                </Button>
+                {viewMode === 'participant' && !debouncedSearch.trim() ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handlePrevParticipant}
+                      disabled={currentParticipantIndex <= 1 || loading}
+                      className="font-bold text-xs px-3 py-1.5 bg-white hover:bg-gray-50 border-gray-300 shadow-sm disabled:opacity-40"
+                    >
+                      ← Previous Participant
+                    </Button>
+                    <div className="text-xs font-bold text-blue-800 px-2 min-w-[70px] text-center bg-white py-1 rounded border border-blue-200 shadow-sm">
+                      #{currentParticipantIndex} of {totalParticipants || 0}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNextParticipant}
+                      disabled={currentParticipantIndex >= totalParticipants || loading}
+                      className="font-bold text-xs px-3 py-1.5 bg-blue-50 hover:bg-blue-100 border-blue-300 text-blue-800 shadow-sm disabled:opacity-40"
+                    >
+                      Next Participant →
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1 || loading}
+                      className="font-medium text-xs px-3 py-1.5"
+                    >
+                      ← Previous 10
+                    </Button>
+                    <div className="text-xs font-semibold text-gray-600 px-2 min-w-[80px] text-center">
+                      Page {currentPage} of {totalPages || 1}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage >= totalPages || loading}
+                      className="font-medium text-xs px-3 py-1.5"
+                    >
+                      Next 10 →
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </CardBody>
@@ -543,33 +745,71 @@ export default function AdminResponsesPage() {
                   </table>
                 </div>
 
-                {/* Bottom Pagination Controls (Requirement 1) */}
+                {/* Bottom Pagination & Navigation Controls */}
                 <div className="py-4 px-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/50">
                   <div className="text-xs font-semibold text-gray-600">
-                    {totalResponses === 0 ? 'Viewing 0 of 0 total' : `Viewing ${viewingStart}–${viewingEnd} of ${totalResponses} total`}
+                    {viewMode === 'participant' && !debouncedSearch.trim() ? (
+                      <span>
+                        Viewing all {responses.length} responses for Participant #{currentParticipantIndex} of {totalParticipants}
+                        {currentParticipant && <span className="ml-1 text-gray-500">({currentParticipant.name})</span>}
+                      </span>
+                    ) : (
+                      <span>
+                        {totalResponses === 0 ? 'Viewing 0 of 0 total' : `Viewing ${viewingStart}–${viewingEnd} of ${totalResponses} total`}
+                      </span>
+                    )}
                   </div>
+
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1 || loading}
-                      className="text-xs px-3 py-1.5"
-                    >
-                      ← Previous 10
-                    </Button>
-                    <span className="text-xs font-semibold text-gray-600 px-2">
-                      Page {currentPage} of {totalPages || 1}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      disabled={currentPage >= totalPages || loading}
-                      className="text-xs px-3 py-1.5"
-                    >
-                      Next 10 →
-                    </Button>
+                    {viewMode === 'participant' && !debouncedSearch.trim() ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handlePrevParticipant}
+                          disabled={currentParticipantIndex <= 1 || loading}
+                          className="font-bold text-xs px-3 py-1.5 bg-white hover:bg-gray-50 border-gray-300 shadow-sm disabled:opacity-40"
+                        >
+                          ← Previous Participant
+                        </Button>
+                        <div className="text-xs font-bold text-blue-800 px-2 min-w-[70px] text-center bg-white py-1 rounded border border-blue-200 shadow-sm">
+                          #{currentParticipantIndex} of {totalParticipants || 0}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleNextParticipant}
+                          disabled={currentParticipantIndex >= totalParticipants || loading}
+                          className="font-bold text-xs px-3 py-1.5 bg-blue-50 hover:bg-blue-100 border-blue-300 text-blue-800 shadow-sm disabled:opacity-40"
+                        >
+                          Next Participant →
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1 || loading}
+                          className="text-xs px-3 py-1.5"
+                        >
+                          ← Previous 10
+                        </Button>
+                        <span className="text-xs font-semibold text-gray-600 px-2">
+                          Page {currentPage} of {totalPages || 1}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={currentPage >= totalPages || loading}
+                          className="text-xs px-3 py-1.5"
+                        >
+                          Next 10 →
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               </>
