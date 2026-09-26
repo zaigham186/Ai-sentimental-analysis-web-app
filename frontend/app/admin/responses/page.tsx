@@ -112,15 +112,9 @@ export default function AdminResponsesPage() {
       setTotalResponses(resData.pagination?.total || 0);
       setStats(statsResponse.data);
 
-      if (resData.pagination?.totalParticipants !== undefined) {
-        setTotalParticipants(resData.pagination.totalParticipants);
-      }
-      if (resData.pagination?.participantsList) {
-        setParticipantsList(resData.pagination.participantsList);
-      }
-      if (resData.pagination?.currentParticipant) {
-        setCurrentParticipant(resData.pagination.currentParticipant);
-      }
+      setTotalParticipants(resData.pagination?.totalParticipants ?? 0);
+      setParticipantsList(resData.pagination?.participantsList || []);
+      setCurrentParticipant(resData.pagination?.currentParticipant || null);
       if (resData.pagination?.currentParticipantIndex) {
         setCurrentParticipantIndex(resData.pagination.currentParticipantIndex);
         setInputParticipantNumber(String(resData.pagination.currentParticipantIndex));

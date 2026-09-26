@@ -5,7 +5,7 @@
 nixPkgs = ["nodejs-18_x"]
 
 [phases.install]
-cmds = ["npm ci --production=false"]
+cmds = ["npm install --omit=dev"]
 
 [phases.build]
 cmds = []
