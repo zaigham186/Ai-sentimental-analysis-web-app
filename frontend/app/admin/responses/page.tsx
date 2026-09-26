@@ -91,6 +91,8 @@ export default function AdminResponsesPage() {
         params.limit = pageSize;
       } else if (viewMode === 'participant') {
         params.participantIndex = currentParticipantIndex;
+        params.participantRangeStart = currentParticipantIndex;
+        params.participantRangeEnd = currentParticipantIndex;
         params.limit = 50; // Load all video responses for this participant
       } else {
         params.page = currentPage;
@@ -107,14 +109,57 @@ export default function AdminResponsesPage() {
       ]);
 
       const resData = responsesResponse.data;
-      setResponses(resData.responses || []);
+      const rawResponses = resData.responses || [];
+
+      // Guarantee participant isolation and sequential video order
+      let displayResponses = rawResponses;
+      if (viewMode === 'participant' && !debouncedSearch.trim() && displayResponses.length > 0) {
+        const targetPid = displayResponses[0]?.participant?._id || displayResponses[0]?.participant?.id;
+        if (targetPid) {
+          displayResponses = displayResponses.filter((r: any) => 
+            (r.participant?._id || r.participant?.id) === targetPid
+          );
+        }
+        displayResponses.sort((a: any, b: any) => (a.video?.order ?? 999) - (b.video?.order ?? 999));
+      }
+
+      setResponses(displayResponses);
       setTotalPages(resData.pagination?.pages || 1);
-      setTotalResponses(resData.pagination?.total || 0);
+      setTotalResponses(displayResponses.length || resData.pagination?.total || 0);
       setStats(statsResponse.data);
 
       setTotalParticipants(resData.pagination?.totalParticipants ?? 0);
-      setParticipantsList(resData.pagination?.participantsList || []);
-      setCurrentParticipant(resData.pagination?.currentParticipant || null);
+
+      // Resolve participant info
+      const firstParticipant = displayResponses[0]?.participant;
+      const resolvedParticipant = resData.pagination?.currentParticipant || (firstParticipant ? {
+        index: currentParticipantIndex,
+        id: firstParticipant._id || firstParticipant.id,
+        name: firstParticipant.name || 'Participant #' + currentParticipantIndex,
+        username: firstParticipant.username || 'unknown',
+        condition: firstParticipant.condition || 'anonymous'
+      } : null);
+
+      setCurrentParticipant(resolvedParticipant);
+
+      if (resData.pagination?.participantsList?.length) {
+        setParticipantsList(resData.pagination.participantsList);
+      } else if (participantsList.length === 0) {
+        api.admin.participants.getAll({ limit: 100 }).then(pRes => {
+          const pList = (pRes.data?.participants || []).map((p: any, idx: number) => ({
+            index: idx + 1,
+            id: p._id || p.id,
+            name: p.name || 'Unnamed Participant',
+            username: p.username || 'unknown',
+            condition: p.condition || 'anonymous'
+          }));
+          if (pList.length > 0) {
+            setParticipantsList(pList);
+            setTotalParticipants(prev => (prev > 0 ? prev : pList.length));
+          }
+        }).catch(() => {});
+      }
+
       if (resData.pagination?.currentParticipantIndex) {
         setCurrentParticipantIndex(resData.pagination.currentParticipantIndex);
         setInputParticipantNumber(String(resData.pagination.currentParticipantIndex));
