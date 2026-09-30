@@ -1,8 +1,12 @@
 """
-Aggression Analysis Service - PHASE 3 IMPLEMENTATION
+Aggression Analysis Service - PHASE 3 IMPLEMENTATION (Upgraded with Trained ML Classifier)
 
 Implements the research-oriented Aggression Lexicon Model framework
-(Xu et al., 2020; Research Operational Coding Guidelines).
+(Xu et al., 2020; Research Operational Coding Guidelines) combined with
+a calibrated subword + word TF-IDF classifier trained on:
+- 3. Aggressive_All (1).csv (118,828 aggressive comments)
+- cyberbullying_dataset_1000-selected-columns (1).csv (1,000 balanced samples)
+- roman_urdu_cyber_abuse_dataset.csv (5,004 balanced Roman Urdu samples)
 
 Operational Principles:
 1. Aggression ≠ Sentiment: Negative emotional tone or disagreement does not
@@ -22,9 +26,14 @@ import json
 import logging
 import os
 import re
+import joblib
 from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_MODEL_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "resources", "models", "aggression_classifier.joblib"
+)
 
 # Default fallback terms in case external resource file is missing
 DEFAULT_LEXICON = {
@@ -32,54 +41,69 @@ DEFAULT_LEXICON = {
         "hostile": {
             "terms": [
                 "stupid", "idiot", "fool", "moron", "dumb", "jerk", "asshole",
-                "bastard", "bitch", "loser", "pathetic", "clown", "garbage", "trash"
+                "bastard", "bitch", "loser", "pathetic", "clown", "garbage", "trash",
+                "bakwas", "bakwaas", "faltu", "faaltu", "pagal", "paagal", "badtameez",
+                "jhoot", "jhoota", "chirkut", "kameena", "jahil", "lanat", "zaleel",
+                "ghatiya", "kutte", "kutta", "harami"
             ]
         },
         "insult": {
             "terms": [
                 "ugly", "disgusting", "worthless", "useless", "retard", "scum",
-                "pig", "freak", "nasty", "creep"
+                "pig", "freak", "nasty", "creep",
+                "ganda", "manhoos", "besharam", "kamina", "ullu", "gadha", "nalayak", "dallal"
             ]
         },
         "threat": {
             "terms": [
                 "kill", "destroy", "hurt", "attack", "die", "murder", "beat",
-                "punch", "shoot", "choke", "strangle", "slit", "burn", "torture"
+                "punch", "shoot", "choke", "strangle", "slit", "burn", "torture",
+                "maro", "maroonga", "marunga", "peetoonga", "jaan se mar", "thappad",
+                "hath tor", "chup kar", "tujhe dekh loonga"
             ]
         },
         "demeaning": {
             "terms": [
                 "shame", "embarrass", "humiliate", "laughable", "disgrace",
-                "unwanted", "nobody likes you", "disappear"
+                "unwanted", "nobody likes you", "disappear",
+                "sharam nahi aati", "sharam kar", "kuch nahi ata", "auqat", "time waste",
+                "dimagh kharab", "dimag kharab", "waqt zaya", "kisi kaam ka nahi"
             ]
         }
     },
     "targeting_pronouns": [
-        "you", "your", "you're", "youre", "yourself", "u", "ur", "he", "she", "they"
+        "you", "your", "you're", "youre", "yourself", "u", "ur", "he", "she", "they",
+        "tu", "tum", "tera", "teri", "tere", "tujhe", "tujhko", "tumhara", "tumhari",
+        "tumhare", "apne aap", "apne aap ko", "tume", "apko", "aap"
     ],
     "critique_markers": [
         "i think", "i believe", "in my opinion", "i disagree", "the idea",
         "the video", "the content", "the presentation", "the argument",
-        "the topic", "the speaker", "this video", "this clip", "this argument"
+        "the topic", "the speaker", "this video", "this clip", "this argument",
+        "meri raye", "mera khayal", "mujhe lagta", "yeh video", "ye video",
+        "yeh clip", "ye clip", "video theek nahi"
     ]
 }
 
 
 class AggressionAnalyzer:
     """
-    Aggression Analyzer based on the Aggression Lexicon Model framework.
-    Loads once on startup and operates deterministically.
+    Hybrid Aggression Analyzer based on the Aggression Lexicon Model framework
+    and trained subword TF-IDF calibrated classifier.
+    Operates deterministically and reliably.
     """
 
-    def __init__(self, lexicon_path: Optional[str] = None):
+    def __init__(self, lexicon_path: Optional[str] = None, model_path: Optional[str] = None):
         """
-        Initialize the analyzer and load the lexicon configuration.
+        Initialize the analyzer and load the lexicon configuration and trained model.
         """
-        self.method_name = "Aggression Lexicon Model (Xu et al., 2020) - Research Operational Framework"
+        self.method_name = "Aggression Lexicon Model (Xu et al., 2020) & Calibrated Subword ML Classifier"
         self._loaded = False
         self.lexicon_path = lexicon_path or os.path.join(
             os.path.dirname(__file__), "..", "resources", "aggression", "lexicon_config.json"
         )
+        self.model_path = model_path or DEFAULT_MODEL_PATH
+        self.model = None
         self.categories: Dict[str, List[str]] = {}
         self.targeting_pronouns: List[str] = []
         self.critique_markers: List[str] = []
@@ -89,9 +113,10 @@ class AggressionAnalyzer:
 
     def load(self) -> bool:
         """
-        Load lexicon terms from configuration file or fallback data.
+        Load lexicon terms and serialized trained ML classifier.
         """
         try:
+            # 1. Load Lexicon configuration
             if os.path.exists(self.lexicon_path):
                 with open(self.lexicon_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -117,6 +142,15 @@ class AggressionAnalyzer:
                     for term in terms
                 ]
 
+            # 2. Load trained Machine Learning classifier
+            if os.path.exists(self.model_path):
+                logger.info(f"Loading trained Aggression model from {self.model_path}...")
+                self.model = joblib.load(self.model_path)
+                logger.info("✅ Aggression ML classifier loaded successfully")
+            else:
+                logger.warning(f"⚠️ Aggression ML model not found at {self.model_path}. Will use lexicon fallback.")
+                self.model = None
+
             self._loaded = True
             logger.info("✅ AggressionAnalyzer loaded successfully")
             return True
@@ -133,13 +167,13 @@ class AggressionAnalyzer:
 
     def analyze(self, text: str) -> Dict:
         """
-        Analyze text for aggression indicators and personal targeting.
+        Analyze text for aggression indicators, personal targeting, and empirical probability.
 
         Args:
             text: Input string (not modified)
 
         Returns:
-            Dict containing score, level, matched_indicators, categories, evidence, method, needs_review
+            Dict containing score, level, matched_indicators, categories, evidence, method, needs_review, ml_probability
         """
         if not self.is_loaded:
             raise RuntimeError("Aggression analyzer is not loaded. Call load() first.")
@@ -147,8 +181,9 @@ class AggressionAnalyzer:
         if text is None or not text.strip():
             raise ValueError("Input text cannot be empty")
 
-        # Conservative normalization for analysis only; original text remains untouched
-        lower_text = text.lower()
+        # Conservative normalization for analysis only
+        clean_t = " ".join(text.strip().split())
+        lower_text = clean_t.lower()
 
         evidence = []
         matched_indicators = set()
@@ -181,7 +216,7 @@ class AggressionAnalyzer:
                     elif cat == "demeaning":
                         demeaning_count += 1
 
-        # Check for personal targeting (e.g. "you are idiot", "you're stupid", "tu pagal hai", "tera content bakwas")
+        # Check for personal targeting
         personal_targeting = False
         targeting_terms = (
             self.categories.get("hostile", []) +
@@ -194,15 +229,28 @@ class AggressionAnalyzer:
             + r")\b",
             re.IGNORECASE
         )
-        if targeting_regex.search(text):
+        if targeting_regex.search(clean_t):
             personal_targeting = True
 
-        # Direct second-person address in English and Roman Urdu combined with abusive terms
+        # 3. Machine Learning Inference (if model loaded)
+        ml_prob = 0.0
+        ml_is_aggressive = False
+        if self.model is not None:
+            try:
+                proba = self.model.predict_proba([clean_t])[0]
+                ml_prob = float(proba[1])
+                ml_is_aggressive = ml_prob >= 0.50
+            except Exception as e:
+                logger.warning(f"Aggression ML inference error: {e}")
+
         direct_second_person = bool(re.search(
-            r"\b(you|your|u|ur|tu|tum|tera|teri|tere|tujhe|tujhko|tumhara|tumhari|tumhare|apne\s+aap)\b",
+            r"\b(you|your|you're|youre|u|ur|tu|tum|tera|teri|tere|tujhe|tujhko|tumhara|tumhari|tumhare|apne\s+aap)\b",
             lower_text
         ))
-        if direct_second_person and (threat_count > 0 or insult_count > 0 or hostile_count > 0 or personal_targeting):
+        if direct_second_person and (
+            threat_count > 0 or insult_count > 0 or hostile_count > 0 or demeaning_count > 0
+            or personal_targeting or (self.model and ml_prob >= 0.70)
+        ):
             personal_targeting = True
 
         # Check for critique of idea / content
@@ -214,33 +262,49 @@ class AggressionAnalyzer:
 
         total_indicators = len(evidence)
 
-        # Operational scoring based on research coding methodology (0-10 scale)
+        # Operational scoring combining Research Guidelines and Trained ML probabilities (0-10 scale)
         if threat_count > 0:
             level = "severe"
             score = float(min(10, 7 + threat_count))
             needs_review = True
         elif personal_targeting and (insult_count > 0 or hostile_count > 0):
-            level = "severe" if (insult_count >= 2 or hostile_count >= 2) else "moderate"
-            score = float(min(9, 5 + insult_count + hostile_count))
+            level = "severe" if (insult_count >= 2 or hostile_count >= 2 or ml_prob >= 0.90) else "moderate"
+            score = float(min(9, max(5 + insult_count + hostile_count, round(ml_prob * 9.0, 1) if ml_prob > 0.6 else 5.0)))
             needs_review = False
+        elif is_critique and not personal_targeting:
+            # Operational rule: Disagreement or harsh content critique is None/Mild, never moderate/severe
+            if total_indicators > 1:
+                level = "mild"
+                score = 4.0
+                needs_review = True
+            elif total_indicators == 1:
+                level = "mild"
+                score = 3.0
+                needs_review = True
+            else:
+                level = "none"
+                score = 0.0
+                needs_review = False
         elif insult_count > 1 or hostile_count > 1 or demeaning_count > 1:
             level = "moderate"
             score = float(min(7, 4 + total_indicators))
             needs_review = False
         elif total_indicators == 1:
-            if is_critique:
-                # Content critique with harsh word (e.g., "what a dumb video") -> Mild
-                level = "mild"
-                score = 3.0
-                needs_review = False
+            level = "mild"
+            score = 3.0
+            needs_review = False
+        elif ml_is_aggressive:
+            # ML detected aggression from the combined 120k + Roman Urdu datasets
+            if ml_prob >= 0.90:
+                level = "severe" if personal_targeting else "moderate"
+                score = float(round(min(8.0, 5.0 + ml_prob * 3.0), 1))
+            elif ml_prob >= 0.70:
+                level = "moderate"
+                score = float(round(min(6.5, 4.0 + ml_prob * 2.5), 1))
             else:
                 level = "mild"
-                score = 3.0
-                needs_review = False
-        elif total_indicators > 1 and is_critique and not personal_targeting:
-            level = "mild"
-            score = 4.0
-            needs_review = True
+                score = float(round(min(4.5, 3.0 + ml_prob * 2.0), 1))
+            needs_review = False
         else:
             level = "none"
             score = 0.0
@@ -250,7 +314,6 @@ class AggressionAnalyzer:
         if is_critique and level != "none":
             needs_review = True
 
-        # Engineering normalized score (0.0 to 1.0)
         engineering_normalized_score = round(score / 10.0, 4)
 
         return {
@@ -263,5 +326,6 @@ class AggressionAnalyzer:
             "categories": sorted(list(matched_categories)),
             "evidence": evidence,
             "method": self.method_name,
-            "needs_review": needs_review
+            "needs_review": needs_review,
+            "ml_probability": round(ml_prob, 4) if self.model else None
         }

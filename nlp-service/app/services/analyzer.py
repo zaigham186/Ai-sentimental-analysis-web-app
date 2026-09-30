@@ -74,7 +74,7 @@ class UnifiedAnalyzer:
             "sentiment": self.sentiment_analyzer.load(),
             "toxicity": self.toxicity_analyzer.load(),
             "aggression": self.aggression_analyzer.load(),
-            "cyberbullying": True,  # Deterministic multi-dimensional evaluation engine
+            "cyberbullying": self.cyberbullying_analyzer.load(),
             "roman_urdu": self.roman_urdu_classifier.load()
         }
         
@@ -104,6 +104,7 @@ class UnifiedAnalyzer:
             self.sentiment_analyzer.is_loaded and
             self.toxicity_analyzer.is_loaded and
             self.aggression_analyzer.is_loaded and
+            self.cyberbullying_analyzer.is_loaded and
             self.roman_urdu_classifier.is_ready
         )
     
@@ -126,11 +127,13 @@ class UnifiedAnalyzer:
             },
             "aggression": {
                 "loaded": self.aggression_analyzer.is_loaded,
-                "model": self.aggression_analyzer.method_name
+                "model": self.aggression_analyzer.method_name,
+                "has_ml_model": self.aggression_analyzer.model is not None
             },
             "cyberbullying": {
-                "loaded": True,
-                "model": self.cyberbullying_analyzer.method_name
+                "loaded": self.cyberbullying_analyzer.is_loaded,
+                "model": self.cyberbullying_analyzer.method_name,
+                "has_ml_model": self.cyberbullying_analyzer.model is not None
             },
             "roman_urdu": {
                 "loaded": self.roman_urdu_classifier.is_ready,
@@ -248,8 +251,8 @@ class UnifiedAnalyzer:
                 "models": {
                     "sentiment": self.sentiment_analyzer.model_name,
                     "toxicity": f"detoxify-{self.toxicity_analyzer.model_name}",
-                    "aggression": "aggression-lexicon-xu-2020",
-                    "cyberbullying": "research-operational-definition",
+                    "aggression": "calibrated-subword-tfidf-aggression-120k",
+                    "cyberbullying": "calibrated-subword-tfidf-cyberbullying-multidim",
                     "roman_urdu": "calibrated-subword-tfidf-5004-dataset"
                 },
                 "device": self.sentiment_analyzer.device,

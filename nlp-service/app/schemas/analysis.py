@@ -115,6 +115,7 @@ class AggressionResult(BaseModel):
     evidence: List[AggressionEvidenceItem] = Field(default_factory=list, description="Matched evidence with span offsets")
     method: str = Field(..., description="Methodology framework applied")
     needs_review: bool = Field(..., description="Whether response requires human review")
+    ml_probability: Optional[float] = Field(None, ge=0.0, le=1.0, description="Calibrated ML aggression probability")
 
 
 class CyberbullyingResult(BaseModel):
@@ -122,6 +123,9 @@ class CyberbullyingResult(BaseModel):
     classification: str = Field(..., description="Classification: cyberbullying, not_cyberbullying, needs_review, insufficient_evidence")
     is_cyberbullying: bool = Field(..., description="Whether operational cyberbullying criteria are satisfied")
     type: str = Field(..., description="Type: harassment, denigration, flaming, threat, none")
+    type_description: Optional[str] = Field(None, description="Detailed explanation of cyberbullying type")
+    detected_types: List[str] = Field(default_factory=list, description="Detected cyberbullying types")
+    type_scores: Dict[str, int] = Field(default_factory=dict, description="Scores for each detected type")
     severity: float = Field(..., ge=0.0, le=10.0, description="Severity rating on 0-10 scale")
     score: Optional[float] = Field(None, ge=0.0, le=1.0, description="Normalized composite score")
     confidence: Optional[float] = Field(None, ge=0.0, le=1.0, description="Model confidence score (not empirical accuracy)")
@@ -131,6 +135,7 @@ class CyberbullyingResult(BaseModel):
     needs_review: bool = Field(..., description="Whether response requires human researcher review")
     method: str = Field(..., description="Methodology operational definition")
     limitations: List[str] = Field(default_factory=list, description="Research limitations statement")
+    ml_probability: Optional[float] = Field(None, ge=0.0, le=1.0, description="Calibrated ML cyberbullying probability")
 
 
 class AnalysisMetadata(BaseModel):
