@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const { VideoResponse, Participant, Video, Coding } = require('../models');
 const { buildResponseQueryAndResults } = require('../utils/responseQueryHelper');
 
@@ -125,8 +126,51 @@ const getStatistics = async (req, res) => {
   }
 };
 
+/**
+ * Delete single response and associated coding
+ * DELETE /api/admin/responses/:id
+ */
+const deleteResponse = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid response ID format'
+      });
+    }
+
+    const response = await VideoResponse.findById(id);
+    if (!response) {
+      return res.status(404).json({
+        success: false,
+        message: 'Response not found'
+      });
+    }
+
+    // Delete associated coding records for this specific response
+    await Coding.deleteMany({ response: id });
+
+    // Delete the video response
+    await response.deleteOne();
+
+    res.json({
+      success: true,
+      message: 'Response deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete response error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to delete response'
+    });
+  }
+};
+
 module.exports = {
   getAllResponses,
   getResponseById,
-  getStatistics
+  getStatistics,
+  deleteResponse
 };

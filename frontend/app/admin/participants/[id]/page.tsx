@@ -6,6 +6,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { api } from '@/lib/api';
 import type { Admin, ParticipantDetail } from '@/types';
@@ -24,6 +25,11 @@ export default function ParticipantDetailPage() {
   const [detail, setDetail] = useState<ParticipantDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Delete participant state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -65,6 +71,18 @@ export default function ParticipantDetailPage() {
     router.push(`/admin/responses/${responseId}`);
   };
 
+  const handleConfirmDelete = async () => {
+    try {
+      setIsDeleting(true);
+      setDeleteError(null);
+      await api.admin.participants.delete(participantId);
+      router.push('/admin/participants');
+    } catch (err: any) {
+      setDeleteError(err.message || 'Failed to delete participant');
+      setIsDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -83,20 +101,48 @@ export default function ParticipantDetailPage() {
     <AdminLayout admin={admin} onLogout={handleLogout}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <Button
-            variant="outline"
-            onClick={() => router.push('/admin/participants')}
-            className="mb-4"
-          >
-            ← Back to Participants
-          </Button>
-          
-          <h1 className="text-3xl font-bold text-gray-900">Participant Details</h1>
-          <p className="mt-2 text-gray-600">
-            Viewing complete participant information and responses
-          </p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <Button
+              variant="outline"
+              onClick={() => router.push('/admin/participants')}
+              className="mb-4"
+            >
+              ← Back to Participants
+            </Button>
+            
+            <h1 className="text-3xl font-bold text-gray-900">Participant Details</h1>
+            <p className="mt-2 text-gray-600">
+              Viewing complete participant information and responses
+            </p>
+          </div>
+
+          <div className="sm:self-end">
+            <button
+              type="button"
+              onClick={() => setDeleteModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-red-600 hover:text-white hover:bg-red-600 rounded-lg border border-red-300 hover:border-transparent transition-colors shadow-sm"
+              title="Delete this participant"
+            >
+              🗑️ Delete Participant
+            </button>
+          </div>
         </div>
+
+        {deleteError && (
+          <Alert variant="error" className="mb-6">
+            <div className="flex justify-between items-center">
+              <span>{deleteError}</span>
+              <button
+                type="button"
+                onClick={() => setDeleteError(null)}
+                className="text-xs font-semibold underline ml-3"
+              >
+                Dismiss
+              </button>
+            </div>
+          </Alert>
+        )}
 
         {error && (
           <Alert variant="error" className="mb-6">
@@ -283,6 +329,62 @@ export default function ParticipantDetailPage() {
             </CardBody>
           </Card>
         )}
+
+        {/* Delete Confirmation Modal */}
+        <Modal
+          isOpen={deleteModalOpen}
+          onClose={() => !isDeleting && setDeleteModalOpen(false)}
+          title="Delete Participant"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to delete this participant? This will permanently remove the participant record along with all their responses, codings, and research data. This action cannot be undone.
+            </p>
+            {participant && (
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs space-y-1">
+                <div>
+                  <span className="font-semibold text-gray-700">Name: </span>
+                  <span className="text-gray-900 font-medium">{participant.name}</span>
+                  <span className="ml-1 text-gray-500 font-mono">(@{participant.username})</span>
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">Condition: </span>
+                  <span className="text-gray-900 capitalize">{participant.condition}</span>
+                  {participant.gender && (
+                    <span className="ml-2 text-gray-500">Gender: <span className="capitalize text-gray-700">{participant.gender}</span></span>
+                  )}
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">University: </span>
+                  <span className="text-gray-900">{participant.university} - {participant.department}</span>
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">Responses: </span>
+                  <span className="text-gray-900">{stats.totalResponses} responses ({stats.codedResponses} coded)</span>
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-3 pt-3 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700 text-white border-transparent"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Participant'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </AdminLayout>
   );

@@ -28,4 +28,10 @@ router.get('/', authenticateAdmin, requireResearcher, participantManagementContr
  */
 router.get('/:id', authenticateAdmin, requireResearcher, participantManagementController.getParticipantById);
 
+/**
+ * DELETE /api/admin/participants/:id
+ * Delete single participant and associated data
+ */
+router.delete('/:id', authenticateAdmin, requireResearcher, participantManagementController.deleteParticipant);
+
 module.exports = router;

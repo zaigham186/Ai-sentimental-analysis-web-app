@@ -1,4 +1,5 @@
-const { Participant, VideoResponse, Coding } = require('../models');
+const mongoose = require('mongoose');
+const { Participant, VideoResponse, Coding, QuestionnaireResponse } = require('../models');
 
 /**
  * Participant Management Controller
@@ -11,7 +12,7 @@ const { Participant, VideoResponse, Coding } = require('../models');
  */
 const getAllParticipants = async (req, res) => {
   try {
-    const { condition, status, search, page = 1, limit = 50 } = req.query;
+    const { condition, status, gender, search, page = 1, limit = 50 } = req.query;
 
     // Build query
     const query = {};
@@ -22,6 +23,10 @@ const getAllParticipants = async (req, res) => {
     
     if (status) {
       query.status = status;
+    }
+
+    if (gender) {
+      query.gender = gender.toLowerCase();
     }
     
     if (search) {
@@ -175,8 +180,64 @@ const getStatistics = async (req, res) => {
   }
 };
 
+/**
+ * Delete single participant and all associated responses and codings
+ * DELETE /api/admin/participants/:id
+ */
+const deleteParticipant = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid participant ID format'
+      });
+    }
+
+    const participant = await Participant.findById(id);
+    if (!participant) {
+      return res.status(404).json({
+        success: false,
+        message: 'Participant not found'
+      });
+    }
+
+    // Find all responses for this participant to cascade delete associated codings
+    const responses = await VideoResponse.find({ participant: id }).select('_id');
+    const responseIds = responses.map(r => r._id);
+
+    if (responseIds.length > 0) {
+      await Coding.deleteMany({ response: { $in: responseIds } });
+    }
+
+    // Delete all video responses for this participant
+    await VideoResponse.deleteMany({ participant: id });
+
+    // Delete any questionnaire responses for this participant
+    if (QuestionnaireResponse) {
+      await QuestionnaireResponse.deleteMany({ participant: id });
+    }
+
+    // Delete the participant
+    await participant.deleteOne();
+
+    res.json({
+      success: true,
+      message: 'Participant and all associated records deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete participant error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete participant'
+    });
+  }
+};
+
 module.exports = {
   getAllParticipants,
   getParticipantById,
-  getStatistics
+  getStatistics,
+  deleteParticipant
 };

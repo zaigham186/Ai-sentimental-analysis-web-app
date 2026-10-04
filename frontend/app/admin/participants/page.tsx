@@ -6,6 +6,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { api } from '@/lib/api';
 import type { Admin, ParticipantWithStats, ParticipantStatistics } from '@/types';
@@ -23,9 +24,17 @@ export default function AdminParticipantsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Delete action states
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [participantToDelete, setParticipantToDelete] = useState<ParticipantWithStats | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  
   // Filters
   const [conditionFilter, setConditionFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [genderFilter, setGenderFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   
@@ -35,7 +44,7 @@ export default function AdminParticipantsPage() {
 
   useEffect(() => {
     loadData();
-  }, [conditionFilter, statusFilter, searchQuery, currentPage]);
+  }, [conditionFilter, statusFilter, genderFilter, searchQuery, currentPage]);
 
   const loadData = async () => {
     try {
@@ -53,6 +62,7 @@ export default function AdminParticipantsPage() {
       };
       if (conditionFilter) params.condition = conditionFilter;
       if (statusFilter) params.status = statusFilter;
+      if (genderFilter) params.gender = genderFilter;
       if (searchQuery) params.search = searchQuery;
 
       // Load participants and stats in parallel
@@ -88,6 +98,36 @@ export default function AdminParticipantsPage() {
     router.push(`/admin/participants/${participantId}`);
   };
 
+  const handleDeleteClick = (participant: ParticipantWithStats) => {
+    setParticipantToDelete(participant);
+    setDeleteError(null);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!participantToDelete) return;
+    try {
+      setIsDeleting(true);
+      setDeleteError(null);
+      await api.admin.participants.delete(participantToDelete._id);
+      setSuccessMessage(`Participant "${participantToDelete.name}" and all associated responses/data were deleted successfully.`);
+      setParticipants(prev => prev.filter(p => p._id !== participantToDelete._id));
+      setDeleteModalOpen(false);
+      setParticipantToDelete(null);
+      // Refresh stats
+      try {
+        const statsResponse = await api.admin.participants.stats();
+        setStats(statsResponse.data);
+      } catch (e) {
+        // silent error on stats refresh
+      }
+    } catch (err: any) {
+      setDeleteError(err.message || 'Failed to delete participant');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -110,6 +150,36 @@ export default function AdminParticipantsPage() {
             View and manage all research participants
           </p>
         </div>
+
+        {successMessage && (
+          <Alert variant="success" className="mb-6">
+            <div className="flex justify-between items-center">
+              <span>{successMessage}</span>
+              <button
+                type="button"
+                onClick={() => setSuccessMessage(null)}
+                className="text-xs font-semibold underline ml-3"
+              >
+                Dismiss
+              </button>
+            </div>
+          </Alert>
+        )}
+
+        {deleteError && (
+          <Alert variant="error" className="mb-6">
+            <div className="flex justify-between items-center">
+              <span>{deleteError}</span>
+              <button
+                type="button"
+                onClick={() => setDeleteError(null)}
+                className="text-xs font-semibold underline ml-3"
+              >
+                Dismiss
+              </button>
+            </div>
+          </Alert>
+        )}
 
         {error && (
           <Alert variant="error" className="mb-6">
@@ -142,7 +212,7 @@ export default function AdminParticipantsPage() {
         {/* Filters */}
         <Card className="mb-6">
           <CardBody>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Search */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -199,6 +269,25 @@ export default function AdminParticipantsPage() {
                   <option value="withdrawn">Withdrawn</option>
                 </select>
               </div>
+
+              {/* Gender Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Gender
+                </label>
+                <select
+                  value={genderFilter}
+                  onChange={(e) => {
+                    setGenderFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="">All Genders</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
             </div>
           </CardBody>
         </Card>
@@ -209,7 +298,7 @@ export default function AdminParticipantsPage() {
             {participants.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-500">
-                  {searchQuery || conditionFilter || statusFilter
+                  {searchQuery || conditionFilter || statusFilter || genderFilter
                     ? 'No participants match your filters'
                     : 'No participants found'}
                 </p>
@@ -282,14 +371,24 @@ export default function AdminParticipantsPage() {
                           <td className="px-4 py-3 text-sm text-gray-600">
                             {participant.createdAt ? new Date(participant.createdAt).toLocaleDateString() : 'N/A'}
                           </td>
-                          <td className="px-4 py-3 text-sm text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewParticipant(participant._id)}
-                            >
-                              View Details
-                            </Button>
+                          <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewParticipant(participant._id)}
+                              >
+                                View Details
+                              </Button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteClick(participant)}
+                                className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded border border-red-200 transition-colors"
+                                title="Delete participant"
+                              >
+                                🗑️ Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -325,6 +424,62 @@ export default function AdminParticipantsPage() {
             )}
           </CardBody>
         </Card>
+
+        {/* Delete Participant Confirmation Modal */}
+        <Modal
+          isOpen={deleteModalOpen}
+          onClose={() => !isDeleting && setDeleteModalOpen(false)}
+          title="Delete Participant"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to delete this participant? This will permanently delete the participant and all their associated responses, codings, and records. This action cannot be undone.
+            </p>
+            {participantToDelete && (
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs space-y-1">
+                <div>
+                  <span className="font-semibold text-gray-700">Name: </span>
+                  <span className="text-gray-900 font-medium">{participantToDelete.name}</span>
+                  <span className="ml-1 text-gray-500 font-mono">(@{participantToDelete.username})</span>
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">Condition: </span>
+                  <span className="text-gray-900 capitalize">{participantToDelete.condition}</span>
+                  {participantToDelete.gender && (
+                    <span className="ml-2 text-gray-500">Gender: <span className="capitalize text-gray-700">{participantToDelete.gender}</span></span>
+                  )}
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">University: </span>
+                  <span className="text-gray-900">{participantToDelete.university} - {participantToDelete.department}</span>
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">Responses: </span>
+                  <span className="text-gray-900">{participantToDelete.responseCount || 0} responses ({participantToDelete.codedCount || 0} coded)</span>
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-3 pt-3 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700 text-white border-transparent"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Participant'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </AdminLayout>
   );

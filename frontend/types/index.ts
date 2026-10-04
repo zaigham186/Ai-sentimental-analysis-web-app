@@ -301,6 +301,7 @@ export interface ResponseWithCoding {
     username: string;
     name: string;
     condition: 'anonymous' | 'identifiable';
+    gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
     displayName?: string;
     status?: string;
   };
@@ -797,6 +798,7 @@ export interface ResponseWithDetails {
     username: string;
     name: string;
     condition: 'anonymous' | 'identifiable';
+    gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
     status: string;
   };
   video: {
@@ -839,6 +841,7 @@ export interface ParticipantNavInfo {
   name: string;
   username: string;
   condition: string;
+  gender?: string;
   responseCount?: number;
 }
 

@@ -28,4 +28,10 @@ router.get('/', authenticateAdmin, requireResearcher, responseManagementControll
  */
 router.get('/:id', authenticateAdmin, requireResearcher, responseManagementController.getResponseById);
 
+/**
+ * DELETE /api/admin/responses/:id
+ * Delete single response and associated coding
+ */
+router.delete('/:id', authenticateAdmin, requireResearcher, responseManagementController.deleteResponse);
+
 module.exports = router;

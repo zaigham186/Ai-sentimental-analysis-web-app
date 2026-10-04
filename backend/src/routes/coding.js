@@ -56,6 +56,12 @@ router.get('/responses', authenticateAdmin, requireResearcher, codingController.
 router.get('/responses/:id', authenticateAdmin, requireResearcher, codingController.getResponseById);
 
 /**
+ * DELETE /api/admin/coding/responses/:id
+ * Delete single response and associated coding
+ */
+router.delete('/responses/:id', authenticateAdmin, requireResearcher, codingController.deleteResponse);
+
+/**
  * POST /api/admin/coding/bulk-analyze
  * Bulk AI analysis of multiple responses
  * Hardened with nlpLimiter for resource protection

@@ -10,6 +10,7 @@ const { VideoResponse, Participant, Video, Coding } = require('../models');
 async function buildResponseQueryAndResults(queryParams = {}) {
   const {
     condition,
+    gender,
     video,
     coded,
     search,
@@ -27,11 +28,14 @@ async function buildResponseQueryAndResults(queryParams = {}) {
   const parsedLimit = Math.max(1, parseInt(limit, 10) || 10);
   const trimmedSearch = typeof search === 'string' ? search.trim() : '';
 
-  // Retrieve all active participants who have video responses (respecting condition filter if set)
+  // Retrieve all active participants who have video responses (respecting condition and gender filters if set)
   const pIdsWithResponses = await VideoResponse.distinct('participant');
   const pFilter = { _id: { $in: pIdsWithResponses } };
   if (condition) {
     pFilter.condition = condition;
+  }
+  if (gender) {
+    pFilter.gender = gender.toLowerCase();
   }
   const allActiveParticipants = await Participant.find(pFilter)
     .sort({ name: 1, createdAt: 1 })
@@ -42,13 +46,14 @@ async function buildResponseQueryAndResults(queryParams = {}) {
     id: p._id.toString(),
     name: p.name || 'Unnamed Participant',
     username: p.username || 'unknown',
-    condition: p.condition || 'anonymous'
+    condition: p.condition || 'anonymous',
+    gender: p.gender
   }));
 
   // Base Mongo query for VideoResponse
   const query = {};
 
-  // 1. Participant search / condition filtering
+  // 1. Participant search / condition / gender filtering
   let matchingParticipantIds = null;
   let matchedParticipantIndex = null;
 
@@ -67,6 +72,9 @@ async function buildResponseQueryAndResults(queryParams = {}) {
     if (condition) {
       participantFilter.condition = condition;
     }
+    if (gender) {
+      participantFilter.gender = gender.toLowerCase();
+    }
 
     const matchingParticipants = await Participant.find(participantFilter).select('_id');
     matchingParticipantIds = matchingParticipants.map(p => p._id);
@@ -78,13 +86,16 @@ async function buildResponseQueryAndResults(queryParams = {}) {
       if (found) matchedParticipantIndex = found.index;
     }
 
-    // Requirement: Show ALL responses of that participant across all videos when searched
-    // Also allow fallback matching on responseText if search doesn't match a participant name
-    if (condition) {
-      const conditionParticipantIds = await Participant.find({ condition }).distinct('_id');
+    // Filter by condition / gender when searching
+    if (condition || gender) {
+      const scopedParticipantFilter = {};
+      if (condition) scopedParticipantFilter.condition = condition;
+      if (gender) scopedParticipantFilter.gender = gender.toLowerCase();
+      const scopedParticipantIds = await Participant.find(scopedParticipantFilter).distinct('_id');
+
       if (matchingParticipantIds.length > 0) {
         query.$and = [
-          { participant: { $in: conditionParticipantIds } },
+          { participant: { $in: scopedParticipantIds } },
           {
             $or: [
               { participant: { $in: matchingParticipantIds } },
@@ -93,7 +104,7 @@ async function buildResponseQueryAndResults(queryParams = {}) {
           }
         ];
       } else {
-        query.participant = { $in: conditionParticipantIds };
+        query.participant = { $in: scopedParticipantIds };
         query.responseText = searchRegex;
       }
     } else {
@@ -121,16 +132,22 @@ async function buildResponseQueryAndResults(queryParams = {}) {
         query.participant = selectedTarget._id;
         matchedParticipantIndex = pIdx;
       }
+    } else if (rawParticipantIndex && participantsList.length === 0) {
+      // Filter resulted in 0 matching participants
+      query.participant = { $in: [] };
     } else if (participantRangeStart && participantRangeEnd) {
       // Legacy participant range
       const start = Math.max(1, parseInt(participantRangeStart, 10));
       const end = Math.min(participantsList.length, Math.max(start, parseInt(participantRangeEnd, 10)));
       const rangeSlice = allActiveParticipants.slice(start - 1, end);
       query.participant = { $in: rangeSlice.map(p => p._id) };
-    } else if (condition) {
-      // Condition filter without search or participantIndex
-      const participantsInCondition = await Participant.find({ condition }).distinct('_id');
-      query.participant = { $in: participantsInCondition };
+    } else if (condition || gender) {
+      // Condition/gender filter without search or participantIndex
+      const filterCriteria = {};
+      if (condition) filterCriteria.condition = condition;
+      if (gender) filterCriteria.gender = gender.toLowerCase();
+      const matchingParticipantIds = await Participant.find(filterCriteria).distinct('_id');
+      query.participant = { $in: matchingParticipantIds };
     }
   }
 
@@ -141,7 +158,7 @@ async function buildResponseQueryAndResults(queryParams = {}) {
 
   // Fetch responses with populated participant and video details
   const responses = await VideoResponse.find(query)
-    .populate('participant', 'username name condition status createdAt')
+    .populate('participant', 'username name condition status gender age department createdAt')
     .populate('video', 'title order topic description duration');
 
   // 4. Batch fetch primary codings for all retrieved responses

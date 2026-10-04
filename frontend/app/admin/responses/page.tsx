@@ -6,6 +6,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { api } from '@/lib/api';
 import type { Admin, ResponseWithDetails, ResponseStatistics, ParticipantNavInfo } from '@/types';
@@ -25,9 +26,17 @@ export default function AdminResponsesPage() {
   
   // Filters & Search
   const [conditionFilter, setConditionFilter] = useState<string>('');
+  const [genderFilter, setGenderFilter] = useState<string>('');
   const [codedFilter, setCodedFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Delete Action State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [responseToDelete, setResponseToDelete] = useState<ResponseWithDetails | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Sorting options (Requirement 4)
   // Default: participant name A-Z, secondary: video number ascending
@@ -100,6 +109,7 @@ export default function AdminResponsesPage() {
       }
 
       if (conditionFilter) params.condition = conditionFilter;
+      if (genderFilter) params.gender = genderFilter;
       if (codedFilter) params.coded = codedFilter;
 
       // Load responses and stats in parallel
@@ -151,7 +161,8 @@ export default function AdminResponsesPage() {
             id: p._id || p.id,
             name: p.name || 'Unnamed Participant',
             username: p.username || 'unknown',
-            condition: p.condition || 'anonymous'
+            condition: p.condition || 'anonymous',
+            gender: p.gender
           }));
           if (pList.length > 0) {
             setParticipantsList(pList);
@@ -173,11 +184,52 @@ export default function AdminResponsesPage() {
     } finally {
       setLoading(false);
     }
-  }, [conditionFilter, codedFilter, debouncedSearch, currentPage, pageSize, sortByOption, currentParticipantIndex, viewMode, router]);
+  }, [conditionFilter, genderFilter, codedFilter, debouncedSearch, currentPage, pageSize, sortByOption, currentParticipantIndex, viewMode, router]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const handleDeleteClick = (response: ResponseWithDetails) => {
+    setResponseToDelete(response);
+    setDeleteError(null);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!responseToDelete) return;
+    const targetId = responseToDelete._id || responseToDelete.id;
+    if (!targetId) return;
+
+    try {
+      setIsDeleting(true);
+      setDeleteError(null);
+      await api.admin.responses.delete(targetId);
+
+      // Immediately update local UI list
+      setResponses(prev => prev.filter(r => (r._id || r.id) !== targetId));
+      setTotalResponses(prev => Math.max(0, prev - 1));
+
+      const participantName = responseToDelete.participant?.name || 'Participant';
+      const videoNum = responseToDelete.video?.order !== undefined ? `Video #${responseToDelete.video.order}` : 'Video';
+      setSuccessMessage(`Response for ${participantName} (${videoNum}) was deleted successfully.`);
+      setDeleteModalOpen(false);
+      setResponseToDelete(null);
+
+      // Reload dataset and stats for updated pagination
+      loadData();
+
+      // Auto-clear success message after 5 seconds
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 5000);
+    } catch (err: any) {
+      console.error('Delete response error:', err);
+      setDeleteError(err.message || 'Failed to delete response. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -284,6 +336,36 @@ export default function AdminResponsesPage() {
         {error && (
           <Alert variant="error" className="mb-6">
             {error}
+          </Alert>
+        )}
+
+        {successMessage && (
+          <Alert variant="success" className="mb-6">
+            <div className="flex items-center justify-between">
+              <span>✓ {successMessage}</span>
+              <button 
+                onClick={() => setSuccessMessage(null)}
+                className="text-xs font-bold text-emerald-800 hover:text-emerald-950 ml-4 px-1"
+                title="Dismiss"
+              >
+                ✕
+              </button>
+            </div>
+          </Alert>
+        )}
+
+        {deleteError && (
+          <Alert variant="error" className="mb-6">
+            <div className="flex items-center justify-between">
+              <span>⚠️ {deleteError}</span>
+              <button 
+                onClick={() => setDeleteError(null)}
+                className="text-xs font-bold text-red-800 hover:text-red-950 ml-4 px-1"
+                title="Dismiss"
+              >
+                ✕
+              </button>
+            </div>
           </Alert>
         )}
 
@@ -502,9 +584,9 @@ export default function AdminResponsesPage() {
         {/* 2. SEARCH BAR & 4. SORTING OPTIONS */}
         <Card className="mb-6 border border-gray-200 shadow-sm bg-white">
           <CardBody>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
               {/* Real-time search (Requirement 2) */}
-              <div className="md:col-span-2">
+              <div className="lg:col-span-5">
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                   Search Participant (Name or Username)
                 </label>
@@ -539,7 +621,7 @@ export default function AdminResponsesPage() {
               </div>
 
               {/* Sorting Options (Requirement 4) */}
-              <div>
+              <div className="lg:col-span-3">
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                   Sort Responses
                 </label>
@@ -566,19 +648,20 @@ export default function AdminResponsesPage() {
                 </p>
               </div>
 
-              {/* Filter Status & Condition */}
-              <div>
+              {/* Filter Status, Condition & Gender */}
+              <div className="lg:col-span-4">
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                   Filter Responses
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <select
                     value={codedFilter}
                     onChange={(e) => {
                       setCodedFilter(e.target.value);
                       setCurrentPage(1);
                     }}
-                    className="w-full px-2.5 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    className="w-full px-2 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    title="Filter by Coding Status"
                   >
                     <option value="">All Statuses</option>
                     <option value="false">Uncoded Only</option>
@@ -589,14 +672,35 @@ export default function AdminResponsesPage() {
                     onChange={(e) => {
                       setConditionFilter(e.target.value);
                       setCurrentPage(1);
+                      setCurrentParticipantIndex(1);
+                      setInputParticipantNumber('1');
                     }}
-                    className="w-full px-2.5 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    className="w-full px-2 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    title="Filter by Condition"
                   >
                     <option value="">All Conditions</option>
                     <option value="anonymous">Anonymous</option>
                     <option value="identifiable">Identifiable</option>
                   </select>
+                  <select
+                    value={genderFilter}
+                    onChange={(e) => {
+                      setGenderFilter(e.target.value);
+                      setCurrentPage(1);
+                      setCurrentParticipantIndex(1);
+                      setInputParticipantNumber('1');
+                    }}
+                    className="w-full px-2 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    title="Filter by Gender"
+                  >
+                    <option value="">All Genders</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
                 </div>
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Filter by status, condition &amp; gender
+                </p>
               </div>
             </div>
           </CardBody>
@@ -608,18 +712,23 @@ export default function AdminResponsesPage() {
             {responses.length === 0 ? (
               <div className="text-center py-16">
                 <p className="text-gray-500 text-sm">
-                  {searchQuery || conditionFilter || codedFilter
+                  {searchQuery || conditionFilter || codedFilter || genderFilter
                     ? 'No responses match your search filters'
                     : 'No responses found in dataset'}
                 </p>
-                {searchQuery && (
+                {(searchQuery || conditionFilter || codedFilter || genderFilter) && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleClearSearch}
+                    onClick={() => {
+                      handleClearSearch();
+                      setConditionFilter('');
+                      setCodedFilter('');
+                      setGenderFilter('');
+                    }}
                     className="mt-3 text-xs"
                   >
-                    Reset Search
+                    Reset Filters
                   </Button>
                 )}
               </div>
@@ -701,8 +810,13 @@ export default function AdminResponsesPage() {
                               {/* Field 1: Participant name + username */}
                               <td className="px-4 py-3 text-sm text-gray-900">
                                 <div>
-                                  <div className="font-semibold text-gray-900">
-                                    {response.participant?.name || 'N/A'}
+                                  <div className="font-semibold text-gray-900 flex items-center gap-1.5">
+                                    <span>{response.participant?.name || 'N/A'}</span>
+                                    {response.participant?.gender && (
+                                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 capitalize">
+                                        {response.participant.gender}
+                                      </span>
+                                    )}
                                   </div>
                                   {response.participant?._id ? (
                                     <button
@@ -760,21 +874,32 @@ export default function AdminResponsesPage() {
 
                               {/* Actions */}
                               <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    const targetId = response._id || (response as any).id;
-                                    if (response.coded) {
-                                      handleViewResponse(targetId);
-                                    } else {
-                                      router.push(`/admin/coding/${targetId}`);
-                                    }
-                                  }}
-                                  className="text-xs font-medium"
-                                >
-                                  {response.coded ? 'View Coding' : 'Code Response'}
-                                </Button>
+                                <div className="flex items-center justify-end gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      const targetId = response._id || (response as any).id;
+                                      if (response.coded) {
+                                        handleViewResponse(targetId);
+                                      } else {
+                                        router.push(`/admin/coding/${targetId}`);
+                                      }
+                                    }}
+                                    className="text-xs font-medium"
+                                  >
+                                    {response.coded ? 'View Coding' : 'Code Response'}
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDeleteClick(response)}
+                                    className="text-xs font-medium text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 hover:text-red-700"
+                                    title="Delete response"
+                                  >
+                                    🗑️ Delete
+                                  </Button>
+                                </div>
                               </td>
                             </tr>
                           </React.Fragment>
@@ -855,6 +980,92 @@ export default function AdminResponsesPage() {
             )}
           </CardBody>
         </Card>
+
+        {/* Delete Confirmation Modal */}
+        <Modal
+          isOpen={deleteModalOpen}
+          onClose={() => {
+            if (!isDeleting) {
+              setDeleteModalOpen(false);
+              setResponseToDelete(null);
+              setDeleteError(null);
+            }
+          }}
+          title="Confirm Deletion"
+          size="md"
+          footer={
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDeleteModalOpen(false);
+                  setResponseToDelete(null);
+                  setDeleteError(null);
+                }}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-lg">
+                ⚠️
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">
+                  Are you sure you want to delete this response?
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  This action will permanently remove this participant response and any associated coding records from the database. This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            {responseToDelete && (
+              <div className="bg-gray-50 rounded-lg p-3 text-xs border border-gray-200 space-y-1.5">
+                <div>
+                  <span className="font-semibold text-gray-700">Participant: </span>
+                  <span className="text-gray-900 font-medium">
+                    {responseToDelete.participant?.name || 'Unknown'} (@{responseToDelete.participant?.username || 'unknown'})
+                  </span>
+                  {responseToDelete.participant?.gender && (
+                    <span className="ml-2 text-[10px] px-1.5 py-0.2 rounded bg-gray-200 text-gray-700 capitalize font-medium">
+                      {responseToDelete.participant.gender}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">Video Stimulus: </span>
+                  <span className="text-gray-900">
+                    Video #{responseToDelete.video?.order ?? '—'} ({responseToDelete.video?.title || 'Scenario'})
+                  </span>
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">Response Text: </span>
+                  <span className="text-gray-600 italic">
+                    "{responseToDelete.responseText?.slice(0, 150)}{responseToDelete.responseText?.length > 150 ? '...' : ''}"
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {deleteError && (
+              <div className="p-3 bg-red-50 text-red-700 text-xs rounded border border-red-200">
+                {deleteError}
+              </div>
+            )}
+          </div>
+        </Modal>
       </div>
     </AdminLayout>
   );

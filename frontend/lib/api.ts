@@ -394,6 +394,7 @@ export const api = {
       getResponses: (params?: {
         coded?: boolean | string;
         condition?: string;
+        gender?: string;
         video?: string;
         search?: string;
         page?: number;
@@ -409,6 +410,7 @@ export const api = {
         const queryParams = new URLSearchParams();
         if (params?.coded !== undefined) queryParams.append('coded', params.coded.toString());
         if (params?.condition) queryParams.append('condition', params.condition);
+        if (params?.gender) queryParams.append('gender', params.gender);
         if (params?.video) queryParams.append('video', params.video);
         if (params?.search) queryParams.append('search', params.search);
         if (params?.page) queryParams.append('page', params.page.toString());
@@ -426,6 +428,9 @@ export const api = {
 
       // Get single response with coding
       getResponseById: (id: string) => fetchAPI(`/api/admin/coding/responses/${id}`),
+
+      // Delete response with coding
+      deleteResponse: (id: string) => fetchAPI(`/api/admin/coding/responses/${id}`, { method: 'DELETE' }),
 
       // Create coding
       create: (data: {
@@ -660,6 +665,7 @@ export const api = {
       getAll: (params?: {
         condition?: string;
         status?: string;
+        gender?: string;
         search?: string;
         page?: number;
         limit?: number;
@@ -667,6 +673,7 @@ export const api = {
         const queryParams = new URLSearchParams();
         if (params?.condition) queryParams.append('condition', params.condition);
         if (params?.status) queryParams.append('status', params.status);
+        if (params?.gender) queryParams.append('gender', params.gender);
         if (params?.search) queryParams.append('search', params.search);
         if (params?.page) queryParams.append('page', params.page.toString());
         if (params?.limit) queryParams.append('limit', params.limit.toString());
@@ -677,6 +684,9 @@ export const api = {
       // Get single participant
       getById: (id: string) => fetchAPI(`/api/admin/participants/${id}`),
 
+      // Delete participant and associated records
+      delete: (id: string) => fetchAPI(`/api/admin/participants/${id}`, { method: 'DELETE' }),
+
       // Get statistics
       stats: () => fetchAPI('/api/admin/participants/stats')
     },
@@ -686,6 +696,7 @@ export const api = {
       // Get all responses with filters
       getAll: (params?: {
         condition?: string;
+        gender?: string;
         video?: string;
         coded?: string | boolean;
         search?: string;
@@ -701,6 +712,7 @@ export const api = {
       }) => {
         const queryParams = new URLSearchParams();
         if (params?.condition) queryParams.append('condition', params.condition);
+        if (params?.gender) queryParams.append('gender', params.gender);
         if (params?.video) queryParams.append('video', params.video);
         if (params?.coded !== undefined) queryParams.append('coded', params.coded.toString());
         if (params?.search) queryParams.append('search', params.search);
@@ -720,6 +732,9 @@ export const api = {
       // Get single response
       getById: (id: string) => fetchAPI(`/api/admin/responses/${id}`),
 
+      // Delete response
+      delete: (id: string) => fetchAPI(`/api/admin/responses/${id}`, { method: 'DELETE' }),
+
       // Get statistics
       stats: () => fetchAPI('/api/admin/responses/stats')
     }
@@ -729,6 +744,7 @@ export const api = {
   responses: {
     getAll: (params?: {
       condition?: string;
+      gender?: string;
       video?: string;
       coded?: string | boolean;
       search?: string;
@@ -739,6 +755,7 @@ export const api = {
     }) => {
       const queryParams = new URLSearchParams();
       if (params?.condition) queryParams.append('condition', params.condition);
+      if (params?.gender) queryParams.append('gender', params.gender);
       if (params?.video) queryParams.append('video', params.video);
       if (params?.coded !== undefined) queryParams.append('coded', params.coded.toString());
       if (params?.search) queryParams.append('search', params.search);

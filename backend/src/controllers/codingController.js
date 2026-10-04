@@ -325,6 +325,47 @@ const deleteCoding = async (req, res) => {
 };
 
 /**
+ * Delete single response and its associated coding
+ * DELETE /api/admin/coding/responses/:id
+ */
+const deleteResponse = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid response ID format'
+      });
+    }
+
+    const response = await VideoResponse.findById(id);
+    if (!response) {
+      return res.status(404).json({
+        success: false,
+        message: 'Response not found'
+      });
+    }
+
+    // Delete any associated coding records for this specific response
+    await Coding.deleteMany({ response: id });
+
+    // Delete the video response
+    await response.deleteOne();
+
+    res.json({
+      success: true,
+      message: 'Response deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete response error in codingController:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to delete response'
+    });
+  }
+};
+
+/**
  * Get coding statistics
  * GET /api/admin/coding/stats
  */
@@ -1084,6 +1125,7 @@ const getValidationStatus = async (req, res) => {
 module.exports = {
   getAllResponses,
   getResponseById,
+  deleteResponse,
   createCoding,
   updateCoding,
   deleteCoding,
