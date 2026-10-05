@@ -78,9 +78,8 @@ export default function AdminExportPage() {
       
       if (condition) params.condition = condition;
       
-      if (type === 'participants' || type === 'responses' || type === 'research-dataset') {
-        params.identityLinked = identityLinked;
-      }
+      // All export types now support identityLinked parameter
+      params.identityLinked = identityLinked;
 
       switch (type) {
         case 'participants':
@@ -232,14 +231,14 @@ export default function AdminExportPage() {
             <CardBody>
               <h2 className="text-xl font-bold text-gray-900 mb-2">Participants Data</h2>
               <p className="text-sm text-gray-600 mb-4">
-                Export participant demographics, condition, and status information
+                Export all participant data including demographics, consent, and experiment progress
               </p>
               
               <div className="border-t pt-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-medium text-gray-900">De-identified Export</h3>
-                    <p className="text-sm text-gray-600">Excludes names and usernames</p>
+                    <p className="text-sm text-gray-600">Excludes names, usernames, and demographics for privacy</p>
                   </div>
                   <div className="space-x-2">
                     <Button
@@ -264,7 +263,7 @@ export default function AdminExportPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-medium text-gray-900">Identity-linked Export</h3>
-                    <p className="text-sm text-gray-600">Includes participant names and demographics</p>
+                    <p className="text-sm text-gray-600">Complete participant data with names and demographics</p>
                   </div>
                   <div className="space-x-2">
                     <Button
@@ -294,14 +293,14 @@ export default function AdminExportPage() {
             <CardBody>
               <h2 className="text-xl font-bold text-gray-900 mb-2">Responses Data</h2>
               <p className="text-sm text-gray-600 mb-4">
-                Export participant video responses with condition and video information
+                Export participant names with their complete video responses and metadata
               </p>
               
               <div className="border-t pt-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-medium text-gray-900">De-identified Export</h3>
-                    <p className="text-sm text-gray-600">Participant IDs only, no names</p>
+                    <p className="text-sm text-gray-600">Responses with participant IDs only, no personal information</p>
                   </div>
                   <div className="space-x-2">
                     <Button
@@ -326,7 +325,7 @@ export default function AdminExportPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-medium text-gray-900">Identity-linked Export</h3>
-                    <p className="text-sm text-gray-600">Includes participant names and usernames</p>
+                    <p className="text-sm text-gray-600">Responses with participant names and demographics</p>
                   </div>
                   <div className="space-x-2">
                     <Button
@@ -356,20 +355,20 @@ export default function AdminExportPage() {
             <CardBody>
               <h2 className="text-xl font-bold text-gray-900 mb-2">Codings Data</h2>
               <p className="text-sm text-gray-600 mb-4">
-                Export sentiment, aggression, and cyberbullying codings
+                Export participant names, responses, and coding results (sentiment, aggression, cyberbullying)
               </p>
               
-              <div className="border-t pt-4">
+              <div className="border-t pt-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-medium text-gray-900">Coding Export</h3>
-                    <p className="text-sm text-gray-600">All coding data with coder information</p>
+                    <h3 className="font-medium text-gray-900">De-identified Export</h3>
+                    <p className="text-sm text-gray-600">Participant IDs only, no names</p>
                   </div>
                   <div className="space-x-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleExport('codings', 'csv')}
+                      onClick={() => handleExport('codings', 'csv', false)}
                       disabled={exporting}
                     >
                       📄 CSV
@@ -377,7 +376,32 @@ export default function AdminExportPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleExport('codings', 'xlsx')}
+                      onClick={() => handleExport('codings', 'xlsx', false)}
+                      disabled={exporting}
+                    >
+                      📊 Excel
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-gray-900">Identity-linked Export</h3>
+                    <p className="text-sm text-gray-600">Includes participant names with all coding data</p>
+                  </div>
+                  <div className="space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleExport('codings', 'csv', true)}
+                      disabled={exporting}
+                    >
+                      📄 CSV
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleExport('codings', 'xlsx', true)}
                       disabled={exporting}
                     >
                       📊 Excel
@@ -393,18 +417,19 @@ export default function AdminExportPage() {
             <CardBody>
               <h2 className="text-xl font-bold text-gray-900 mb-2">Combined Research Dataset</h2>
               <p className="text-sm text-gray-600 mb-4">
-                Export complete dataset combining participants, videos, responses, and codings
+                Complete participant journey: demographics + all responses + all coding results in one comprehensive dataset
               </p>
               <Alert variant="info" className="mb-4">
-                <strong>Recommended for statistical analysis:</strong> This format combines all research data 
-                in a single file, ready for import into SPSS, R, or Python.
+                <strong>Recommended for statistical analysis:</strong> This format combines participant names with 
+                all their responses and coding data in a single file, ready for import into SPSS, R, or Python. 
+                Each row represents one response with full participant context.
               </Alert>
               
               <div className="border-t pt-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-medium text-gray-900">De-identified Export</h3>
-                    <p className="text-sm text-gray-600">Research IDs only, suitable for publication</p>
+                    <p className="text-sm text-gray-600">Complete dataset with research IDs only, suitable for publication</p>
                   </div>
                   <div className="space-x-2">
                     <Button
@@ -429,7 +454,7 @@ export default function AdminExportPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-medium text-gray-900">Identity-linked Export</h3>
-                    <p className="text-sm text-gray-600">Full dataset with participant identities</p>
+                    <p className="text-sm text-gray-600">Comprehensive dataset including participant identities and all research data</p>
                   </div>
                   <div className="space-x-2">
                     <Button

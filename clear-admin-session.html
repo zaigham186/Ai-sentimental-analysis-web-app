@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Admin Session</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .info-box {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .warning-box {
+            background: #fff7ed;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .success-box {
+            background: #f0fdf4;
+            border-left: 4px solid #10b981;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            display: none;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
+        }
+        .btn-danger {
+            background: #ef4444;
+        }
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        .btn-success {
+            background: #10b981;
+        }
+        .btn-success:hover {
+            background: #059669;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f3f4f6;
+        }
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        .badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-found {
+            background: #fecaca;
+            color: #991b1b;
+        }
+        .badge-clear {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Clear Admin Session</h1>
+        <p class="subtitle">Fix "Already logged in as admin" error</p>
+
+        <div class="info-box">
+            <strong>📋 What This Does:</strong><br>
+            This tool will clear your admin session from the browser, allowing you to login fresh.
+            It removes session tokens from localStorage and sessionStorage.
+        </div>
+
+        <div class="warning-box">
+            <strong>⚠️ Current Problem:</strong><br>
+            You're seeing "Already logged in as admin" because there's a cached session in your browser.
+            Click the buttons below to clear it.
+        </div>
+
+        <div id="status" class="status">
+            <h3 style="margin-top: 0;">Current Session Status:</h3>
+            <div class="status-item">
+                <span>localStorage adminSession:</span>
+                <span id="localStorage-status" class="badge badge-found">Checking...</span>
+            </div>
+            <div class="status-item">
+                <span>sessionStorage adminSession:</span>
+                <span id="sessionStorage-status" class="badge badge-found">Checking...</span>
+            </div>
+        </div>
+
+        <div style="margin: 30px 0; text-align: center;">
+            <button onclick="checkStatus()">🔍 Check Session Status</button>
+            <button onclick="clearSession()" class="btn-danger">🗑️ Clear Admin Session</button>
+            <button onclick="clearAllAndLogin()" class="btn-success">✨ Clear & Go to Login</button>
+        </div>
+
+        <div id="success" class="success-box">
+            <strong>✅ Success!</strong><br>
+            Admin session has been cleared. You can now login fresh.
+        </div>
+
+        <div class="info-box">
+            <strong>📖 Manual Steps (if buttons don't work):</strong><br>
+            1. Press <code>F12</code> to open Developer Tools<br>
+            2. Go to <strong>Application</strong> tab (or Storage in Firefox)<br>
+            3. Under <strong>Storage</strong> section, find:<br>
+            &nbsp;&nbsp;&nbsp;• <strong>Local Storage</strong> → Click your site → Delete <code>adminSession</code><br>
+            &nbsp;&nbsp;&nbsp;• <strong>Session Storage</strong> → Click your site → Delete <code>adminSession</code><br>
+            4. Close Developer Tools<br>
+            5. Refresh the page<br>
+            6. Try logging in again
+        </div>
+
+        <div class="info-box">
+            <strong>🌐 Localhost URLs:</strong><br>
+            • Frontend: <a href="http://localhost:3000/admin/login" target="_blank">http://localhost:3000/admin/login</a><br>
+            • Backend: <a href="http://localhost:5000" target="_blank">http://localhost:5000</a>
+        </div>
+    </div>
+
+    <script>
+        // Check current session status
+        function checkStatus() {
+            const localToken = localStorage.getItem('adminSession');
+            const sessionToken = sessionStorage.getItem('adminSession');
+            
+            document.getElementById('localStorage-status').textContent = 
+                localToken ? 'Found (needs clearing)' : 'Clear ✓';
+            document.getElementById('localStorage-status').className = 
+                localToken ? 'badge badge-found' : 'badge badge-clear';
+            
+            document.getElementById('sessionStorage-status').textContent = 
+                sessionToken ? 'Found (needs clearing)' : 'Clear ✓';
+            document.getElementById('sessionStorage-status').className = 
+                sessionToken ? 'badge badge-found' : 'badge badge-clear';
+            
+            console.log('Session Status:', {
+                localStorage: localToken ? 'HAS TOKEN' : 'CLEAR',
+                sessionStorage: sessionToken ? 'HAS TOKEN' : 'CLEAR'
+            });
+        }
+
+        // Clear admin session
+        function clearSession() {
+            try {
+                // Remove from localStorage
+                localStorage.removeItem('adminSession');
+                localStorage.removeItem('adminData');
+                localStorage.removeItem('adminUsername');
+                
+                // Remove from sessionStorage
+                sessionStorage.removeItem('adminSession');
+                sessionStorage.removeItem('adminData');
+                sessionStorage.removeItem('adminUsername');
+                
+                // Clear any cookies
+                document.cookie.split(";").forEach(function(c) { 
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+                });
+                
+                console.log('✅ Admin session cleared successfully');
+                
+                // Show success message
+                document.getElementById('success').style.display = 'block';
+                
+                // Update status
+                checkStatus();
+                
+                alert('✅ Admin session cleared!\n\nYou can now login fresh at:\nhttp://localhost:3000/admin/login');
+                
+            } catch (error) {
+                console.error('Error clearing session:', error);
+                alert('❌ Error clearing session: ' + error.message);
+            }
+        }
+
+        // Clear and redirect to login
+        function clearAllAndLogin() {
+            clearSession();
+            setTimeout(() => {
+                window.location.href = 'http://localhost:3000/admin/login';
+            }, 1000);
+        }
+
+        // Check status on page load
+        window.onload = function() {
+            checkStatus();
+        };
+    </script>
+</body>
+</html>
