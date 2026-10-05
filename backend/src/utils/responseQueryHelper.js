@@ -28,6 +28,11 @@ async function buildResponseQueryAndResults(queryParams = {}) {
   const parsedLimit = Math.max(1, parseInt(limit, 10) || 10);
   const trimmedSearch = typeof search === 'string' ? search.trim() : '';
 
+  const buildGenderRegex = (g) => {
+    const clean = String(g).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[_\s-]+/g, '[_\\s-]*');
+    return new RegExp(`^${clean}$`, 'i');
+  };
+
   // Retrieve all active participants who have video responses (respecting condition and gender filters if set)
   const pIdsWithResponses = await VideoResponse.distinct('participant');
   const pFilter = { _id: { $in: pIdsWithResponses } };
@@ -35,8 +40,7 @@ async function buildResponseQueryAndResults(queryParams = {}) {
     pFilter.condition = condition;
   }
   if (gender) {
-    // Case-insensitive gender match to handle both "Male"/"male" and "Female"/"female"
-    pFilter.gender = new RegExp(`^${gender}$`, 'i');
+    pFilter.gender = buildGenderRegex(gender);
   }
   const allActiveParticipants = await Participant.find(pFilter)
     .sort({ name: 1, createdAt: 1 })
@@ -62,11 +66,13 @@ async function buildResponseQueryAndResults(queryParams = {}) {
     const escapedSearch = trimmedSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const searchRegex = new RegExp(escapedSearch, 'i');
 
-    // Search by participant name or username
+    // Search by participant name, username, gender, or department
     const participantFilter = {
       $or: [
         { name: searchRegex },
-        { username: searchRegex }
+        { username: searchRegex },
+        { gender: searchRegex },
+        { department: searchRegex }
       ]
     };
 
@@ -74,8 +80,7 @@ async function buildResponseQueryAndResults(queryParams = {}) {
       participantFilter.condition = condition;
     }
     if (gender) {
-      // Case-insensitive gender match
-      participantFilter.gender = new RegExp(`^${gender}$`, 'i');
+      participantFilter.gender = buildGenderRegex(gender);
     }
 
     const matchingParticipants = await Participant.find(participantFilter).select('_id');
@@ -92,7 +97,7 @@ async function buildResponseQueryAndResults(queryParams = {}) {
     if (condition || gender) {
       const scopedParticipantFilter = {};
       if (condition) scopedParticipantFilter.condition = condition;
-      if (gender) scopedParticipantFilter.gender = new RegExp(`^${gender}$`, 'i');
+      if (gender) scopedParticipantFilter.gender = buildGenderRegex(gender);
       const scopedParticipantIds = await Participant.find(scopedParticipantFilter).distinct('_id');
 
       if (matchingParticipantIds.length > 0) {
@@ -147,7 +152,7 @@ async function buildResponseQueryAndResults(queryParams = {}) {
       // Condition/gender filter without search or participantIndex
       const filterCriteria = {};
       if (condition) filterCriteria.condition = condition;
-      if (gender) filterCriteria.gender = new RegExp(`^${gender}$`, 'i');
+      if (gender) filterCriteria.gender = buildGenderRegex(gender);
       const matchingParticipantIds = await Participant.find(filterCriteria).distinct('_id');
       query.participant = { $in: matchingParticipantIds };
     }

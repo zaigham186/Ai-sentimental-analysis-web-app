@@ -3,36 +3,46 @@ const XLSX = require('xlsx');
 
 /**
  * Export Controller
- * Phase 11: Research Data Export
- * CRITICAL: Never export passwords, tokens, or secrets
- * CRITICAL: Researcher authorization required
- * CRITICAL: Support identity-linked and de-identified exports
+ * Comprehensive Research Data Export
+ * 
+ * 1. Participant Data: All participant records with complete database fields
+ * 2. Responses Data: Participant Name + their responses (traceable, ordered by participant and video)
+ * 3. Coding Data: Participant Name + Responses + Coding Results (Participant -> Response -> Coding)
+ * 4. Combined Research Dataset: Complete participant journey combining Participant + Responses + Coding
+ * 
+ * Accurately connects records using MongoDB ObjectIds.
+ * Preserves exact participant names consistently across all exports.
+ * Removes de-identified export options as requested.
  */
 
-/**
- * Helper: Convert data to CSV format
- */
+// Helper to format Date
+const formatDate = (d) => {
+  if (!d) return '';
+  const dateObj = new Date(d);
+  return isNaN(dateObj.getTime()) ? '' : dateObj.toISOString();
+};
+
+// Helper: Convert array of objects to CSV string
 const convertToCSV = (data, headers) => {
-  if (data.length === 0) return headers.join(',') + '\n';
+  if (!data || data.length === 0) return (headers || []).join(',') + '\n';
   
-  const headerLine = headers.join(',');
+  const actualHeaders = headers && headers.length > 0 ? headers : Object.keys(data[0]);
+  const headerLine = actualHeaders.map(h => `"${String(h).replace(/"/g, '""')}"`).join(',');
+  
   const rows = data.map(row => {
-    return headers.map(header => {
+    return actualHeaders.map(header => {
       const value = row[header];
-      if (value === null || value === undefined) return '';
-      // Escape commas and quotes
-      const stringValue = String(value).replace(/"/g, '""');
-      return stringValue.includes(',') ? `"${stringValue}"` : stringValue;
+      if (value === null || value === undefined) return '""';
+      const strVal = String(value).replace(/"/g, '""');
+      return `"${strVal}"`;
     }).join(',');
   });
   
   return headerLine + '\n' + rows.join('\n');
 };
 
-/**
- * Helper: Convert data to Excel format
- */
-const convertToExcel = (data, sheetName = 'Data') => {
+// Helper: Convert array of objects to Excel buffer
+const convertToExcel = (data, sheetName = 'Research Data') => {
   const worksheet = XLSX.utils.json_to_sheet(data);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
@@ -40,72 +50,54 @@ const convertToExcel = (data, sheetName = 'Data') => {
 };
 
 /**
- * Export participants
- * GET /api/admin/export/participants?format=csv&identityLinked=false
- * UPDATED: Now includes all participant data with their name
+ * 1. Export participants
+ * GET /api/admin/export/participants?format=csv
+ * Contains all participant records from database with their real name and full demographics.
  */
 const exportParticipants = async (req, res) => {
   try {
-    const { format = 'csv', identityLinked = 'false', condition } = req.query;
+    const { format = 'csv', condition } = req.query;
     
     const query = {};
     if (condition) query.condition = condition;
     
-    const participants = await Participant.find(query).sort({ createdAt: 1 });
+    const participants = await Participant.find(query).sort({ name: 1, createdAt: 1 });
     
-    // Prepare data - Always include participant name as required
-    const data = participants.map((p, index) => {
-      const participantData = {
-        participantId: `P${String(index + 1).padStart(3, '0')}`,
-        name: p.name || '', // ALWAYS include name
-        username: p.username || '',
-        age: p.age || '',
-        gender: p.gender || '',
-        university: p.university || '',
-        department: p.department || '',
-        condition: p.condition || '',
-        status: p.status || '',
-        consentGiven: p.consentGiven !== undefined ? p.consentGiven : false,
-        consentDate: p.consentAt ? new Date(p.consentAt).toISOString() : '',
-        consentVersion: p.consentVersion || '',
-        conditionAssigned: p.conditionAssigned !== undefined ? p.conditionAssigned : false,
-        assignedAt: p.assignedAt ? new Date(p.assignedAt).toISOString() : '',
-        experimentStartedAt: p.experimentStartedAt ? new Date(p.experimentStartedAt).toISOString() : '',
-        completedAt: p.completedAt ? new Date(p.completedAt).toISOString() : '',
-        completedVideosCount: p.completedVideos ? p.completedVideos.length : 0,
-        withdrawalStatus: p.withdrawalStatus !== undefined ? p.withdrawalStatus : false,
-        withdrawalReason: p.withdrawalReason || '',
-        withdrawalDate: p.withdrawalDate ? new Date(p.withdrawalDate).toISOString() : '',
-        createdAt: new Date(p.createdAt).toISOString(),
-        updatedAt: new Date(p.updatedAt).toISOString()
-      };
-      
-      // For de-identified, remove personally identifiable information
-      if (identityLinked === 'false') {
-        delete participantData.name;
-        delete participantData.username;
-      }
-      
-      return participantData;
-    });
+    const data = participants.map((p) => ({
+      'Participant Name': p.name || '',
+      'Username': p.username || '',
+      'Age': p.age ?? '',
+      'Gender': p.gender || '',
+      'University': p.university || '',
+      'Department': p.department || '',
+      'Condition': p.condition || '',
+      'Condition Assigned': p.conditionAssigned ? 'Yes' : 'No',
+      'Assigned At': formatDate(p.assignedAt),
+      'Assignment Version': p.assignmentVersion || '',
+      'Consent Given': p.consentGiven ? 'Yes' : 'No',
+      'Consent Date': formatDate(p.consentAt),
+      'Consent Version': p.consentVersion || '',
+      'Study Status': p.status || '',
+      'Completed Videos Count': Array.isArray(p.completedVideos) ? p.completedVideos.length : 0,
+      'Experiment Started At': formatDate(p.experimentStartedAt),
+      'Completed At': formatDate(p.completedAt),
+      'Withdrawal Status': p.withdrawalStatus ? 'Yes' : 'No',
+      'Withdrawal Reason': p.withdrawalReason || '',
+      'Withdrawal Date': formatDate(p.withdrawalDate),
+      'Registered Date': formatDate(p.createdAt),
+      'Participant Database ID': p._id.toString()
+    }));
     
-    if (format === 'xlsx' || format === 'excel') {
+    const isExcel = format.toLowerCase() === 'xlsx' || format.toLowerCase() === 'excel';
+    const filename = `participant_data_${new Date().toISOString().split('T')[0]}.${isExcel ? 'xlsx' : 'csv'}`;
+    
+    if (isExcel) {
       const buffer = convertToExcel(data, 'Participants');
-      const filename = identityLinked === 'true' 
-        ? 'participants-identity-linked.xlsx' 
-        : 'participants-deidentified.xlsx';
-      
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       return res.send(buffer);
     } else {
-      // CSV
-      const headers = Object.keys(data[0] || {});
-      const csv = convertToCSV(data, headers);
-      const filename = identityLinked === 'true' 
-        ? 'participants-identity-linked.csv' 
-        : 'participants-deidentified.csv';
-      
+      const csv = convertToCSV(data);
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       return res.send(csv);
@@ -120,83 +112,67 @@ const exportParticipants = async (req, res) => {
 };
 
 /**
- * Export responses
- * GET /api/admin/export/responses?format=csv&identityLinked=false
- * UPDATED: Now includes participant name along with their responses
+ * 2. Export responses
+ * GET /api/admin/export/responses?format=csv
+ * Contains participant names and their actual responses, accurately connected.
  */
 const exportResponses = async (req, res) => {
   try {
-    const { format = 'csv', identityLinked = 'false', condition, video } = req.query;
+    const { format = 'csv', condition, video } = req.query;
     
     const query = {};
-    
-    // Filter by condition
     if (condition) {
-      const participants = await Participant.find({ condition }).distinct('_id');
-      query.participant = { $in: participants };
+      const matchingPids = await Participant.find({ condition }).distinct('_id');
+      query.participant = { $in: matchingPids };
     }
-    
-    // Filter by video
     if (video) {
       query.video = video;
     }
     
-    const responses = await VideoResponse.find(query)
-      .populate('participant', 'condition username name age gender university department')
-      .populate('video', 'title order topic')
-      .sort({ submittedAt: 1 });
+    const allResponses = await VideoResponse.find(query)
+      .populate('participant')
+      .populate('video')
+      .sort({ createdAt: 1 });
     
-    // Prepare data - Always include participant name with responses
-    const data = responses.map((r, index) => {
-      const responseData = {
-        responseId: `R${String(index + 1).padStart(4, '0')}`,
-        participantId: `P${String(index + 1).padStart(3, '0')}`,
-        participantName: r.participant?.name || '', // ALWAYS include name
-        participantUsername: r.participant?.username || '',
-        participantAge: r.participant?.age || '',
-        participantGender: r.participant?.gender || '',
-        participantUniversity: r.participant?.university || '',
-        participantDepartment: r.participant?.department || '',
-        condition: r.participant?.condition || '',
-        videoTitle: r.video?.title || '',
-        videoOrder: r.video?.order || '',
-        videoTopic: r.video?.topic || '',
-        responseText: r.responseText || '',
-        responseLength: r.responseLength || 0,
-        responseWordCount: r.responseWordCount || 0,
-        responseTime: r.responseTime || '',
-        submittedAt: new Date(r.submittedAt).toISOString()
-      };
-      
-      // For de-identified, remove personally identifiable information
-      if (identityLinked === 'false') {
-        delete responseData.participantName;
-        delete responseData.participantUsername;
-        delete responseData.participantAge;
-        delete responseData.participantGender;
-        delete responseData.participantUniversity;
-        delete responseData.participantDepartment;
-      }
-      
-      return responseData;
+    // Filter out any orphaned records where participant does not exist
+    const responses = allResponses.filter(r => r.participant && (r.participant.name || r.participant.username));
+    
+    // Sort primarily by Participant Name, secondarily by Video Order
+    responses.sort((a, b) => {
+      const nameA = (a.participant?.name || '').toLowerCase();
+      const nameB = (b.participant?.name || '').toLowerCase();
+      if (nameA !== nameB) return nameA.localeCompare(nameB);
+      const orderA = a.video?.order ?? 999;
+      const orderB = b.video?.order ?? 999;
+      return orderA - orderB;
     });
     
-    if (format === 'xlsx' || format === 'excel') {
+    const data = responses.map((r) => ({
+      'Participant Name': r.participant?.name || '',
+      'Username': r.participant?.username || '',
+      'Participant Database ID': r.participant?._id?.toString() || '',
+      'Condition': r.participant?.condition || '',
+      'Video Number': r.video?.order !== undefined ? r.video.order : '',
+      'Video Title': r.video?.title || '',
+      'Video Topic': r.video?.topic || '',
+      'Response Text': r.responseText || '',
+      'Response Word Count': r.responseWordCount ?? 0,
+      'Response Character Length': r.responseLength ?? 0,
+      'Response Time (seconds)': r.responseTime ?? '',
+      'Submitted At': formatDate(r.submittedAt),
+      'Response Database ID': r._id.toString()
+    }));
+    
+    const isExcel = format.toLowerCase() === 'xlsx' || format.toLowerCase() === 'excel';
+    const filename = `responses_data_${new Date().toISOString().split('T')[0]}.${isExcel ? 'xlsx' : 'csv'}`;
+    
+    if (isExcel) {
       const buffer = convertToExcel(data, 'Responses');
-      const filename = identityLinked === 'true' 
-        ? 'responses-identity-linked.xlsx' 
-        : 'responses-deidentified.xlsx';
-      
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       return res.send(buffer);
     } else {
-      const headers = Object.keys(data[0] || {});
-      const csv = convertToCSV(data, headers);
-      const filename = identityLinked === 'true' 
-        ? 'responses-identity-linked.csv' 
-        : 'responses-deidentified.csv';
-      
+      const csv = convertToCSV(data);
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       return res.send(csv);
@@ -211,101 +187,87 @@ const exportResponses = async (req, res) => {
 };
 
 /**
- * Export codings
+ * 3. Export codings
  * GET /api/admin/export/codings?format=csv
- * UPDATED: Now includes participant name + their responses + coding results
+ * Contains Participant Name + Responses + Coding Results (Participant -> Response -> Coding)
  */
 const exportCodings = async (req, res) => {
   try {
-    const { format = 'csv', identityLinked = 'false', condition, codingStatus } = req.query;
+    const { format = 'csv', condition } = req.query;
     
-    let query = { coderRole: 'primary' };
-    
-    const codings = await Coding.find(query)
+    const codings = await Coding.find({ coderRole: 'primary' })
       .populate({
         path: 'response',
         populate: [
-          { path: 'participant', select: 'condition name username age gender university department' },
-          { path: 'video', select: 'title order topic' }
+          { path: 'participant' },
+          { path: 'video' }
         ]
       })
       .populate('codedBy', 'name username')
+      .populate('reviewedBy', 'name username')
       .sort({ codedAt: 1 });
     
-    // Filter by condition if specified
     let filteredCodings = codings;
     if (condition) {
       filteredCodings = codings.filter(c => c.response?.participant?.condition === condition);
     }
     
-    // Prepare data - Include participant name, responses, then coding results
-    const data = filteredCodings.map((c, index) => {
-      const codingData = {
-        codingId: `C${String(index + 1).padStart(4, '0')}`,
-        responseId: `R${String(index + 1).padStart(4, '0')}`,
-        participantId: `P${String(index + 1).padStart(3, '0')}`,
-        // Participant Information
-        participantName: c.response?.participant?.name || '',
-        participantUsername: c.response?.participant?.username || '',
-        participantAge: c.response?.participant?.age || '',
-        participantGender: c.response?.participant?.gender || '',
-        participantUniversity: c.response?.participant?.university || '',
-        participantDepartment: c.response?.participant?.department || '',
-        condition: c.response?.participant?.condition || '',
-        // Video Information
-        videoTitle: c.response?.video?.title || '',
-        videoOrder: c.response?.video?.order || '',
-        videoTopic: c.response?.video?.topic || '',
-        // Response Information
-        responseText: c.response?.responseText || '',
-        responseLength: c.response?.responseLength || 0,
-        responseWordCount: c.response?.responseWordCount || 0,
-        responseTime: c.response?.responseTime || '',
-        responseSubmittedAt: c.response?.submittedAt ? new Date(c.response.submittedAt).toISOString() : '',
-        // Coding Results
-        sentiment: c.sentiment || '',
-        aggressionLevel: c.aggression?.level !== undefined ? c.aggression.level : '',
-        aggressionCategory: c.aggression?.category || '',
-        aggressionIndicators: c.aggression?.indicators ? c.aggression.indicators.join('; ') : '',
-        cyberbullyingPresent: c.cyberbullying?.present !== undefined ? c.cyberbullying.present : '',
-        cyberbullyingType: c.cyberbullying?.type || '',
-        cyberbullyingSeverity: c.cyberbullying?.severity !== undefined ? c.cyberbullying.severity : '',
-        cyberbullyingIndicators: c.cyberbullying?.indicators ? c.cyberbullying.indicators.join('; ') : '',
-        notes: c.notes || '',
-        coder: c.codedBy?.name || '',
-        coderUsername: c.codedBy?.username || '',
-        codingVersion: c.codingVersion || '',
-        confidence: c.confidence || '',
-        codedAt: new Date(c.codedAt).toISOString()
-      };
-      
-      // For de-identified, remove personally identifiable information
-      if (identityLinked === 'false') {
-        delete codingData.participantName;
-        delete codingData.participantUsername;
-        delete codingData.participantAge;
-        delete codingData.participantGender;
-        delete codingData.participantUniversity;
-        delete codingData.participantDepartment;
-      }
-      
-      return codingData;
+    // Filter out any orphaned records where response or participant does not exist
+    const validCodings = filteredCodings.filter(c => c.response && c.response.participant && (c.response.participant.name || c.response.participant.username));
+
+    // Sort primarily by Participant Name, secondarily by Video Order
+    validCodings.sort((a, b) => {
+      const nameA = (a.response?.participant?.name || '').toLowerCase();
+      const nameB = (b.response?.participant?.name || '').toLowerCase();
+      if (nameA !== nameB) return nameA.localeCompare(nameB);
+      const orderA = a.response?.video?.order ?? 999;
+      const orderB = b.response?.video?.order ?? 999;
+      return orderA - orderB;
     });
     
-    if (format === 'xlsx' || format === 'excel') {
-      const buffer = convertToExcel(data, 'Codings');
-      const filename = identityLinked === 'true' 
-        ? 'codings-identity-linked.xlsx' 
-        : 'codings-deidentified.xlsx';
+    const data = validCodings.map((c) => ({
+      'Participant Name': c.response?.participant?.name || '',
+      'Username': c.response?.participant?.username || '',
+      'Participant Database ID': c.response?.participant?._id?.toString() || '',
+      'Condition': c.response?.participant?.condition || '',
+      'Video Number': c.response?.video?.order !== undefined ? c.response.video.order : '',
+      'Video Title': c.response?.video?.title || '',
+      'Video Topic': c.response?.video?.topic || '',
+      'Response Text': c.response?.responseText || '',
+      'Response Submitted At': formatDate(c.response?.submittedAt),
+      'Response Database ID': c.response?._id?.toString() || '',
+      'Sentiment': c.sentiment || '',
+      'Sentiment Score': c.sentimentScore !== undefined && c.sentimentScore !== null ? c.sentimentScore : '',
+      'Aggression Level': c.aggression?.level !== undefined && c.aggression?.level !== null ? c.aggression.level : '',
+      'Aggression Category': c.aggression?.category || '',
+      'Aggression Score': c.aggression?.score !== undefined && c.aggression?.score !== null ? c.aggression.score : '',
+      'Aggression Indicators': Array.isArray(c.aggression?.indicators) ? c.aggression.indicators.join('; ') : '',
+      'Cyberbullying Present': c.cyberbullying?.present !== undefined && c.cyberbullying?.present !== null ? (c.cyberbullying.present ? 'Yes' : 'No') : '',
+      'Cyberbullying Type': c.cyberbullying?.type || '',
+      'Cyberbullying Severity': c.cyberbullying?.severity !== undefined && c.cyberbullying?.severity !== null ? c.cyberbullying.severity : '',
+      'Cyberbullying Score': c.cyberbullying?.score !== undefined && c.cyberbullying?.score !== null ? c.cyberbullying.score : '',
+      'Cyberbullying Indicators': Array.isArray(c.cyberbullying?.indicators) ? c.cyberbullying.indicators.join('; ') : '',
+      'Coding Confidence': c.confidence || '',
+      'Coding Notes': c.notes || '',
+      'Coder Name': c.codedBy?.name || '',
+      'Coder Username': c.codedBy?.username || '',
+      'Review Status': c.reviewStatus || '',
+      'Reviewer Name': c.reviewedBy?.name || '',
+      'Coding Version': c.codingVersion || '',
+      'Coded At': formatDate(c.codedAt),
+      'Coding Database ID': c._id.toString()
+    }));
+    
+    const isExcel = format.toLowerCase() === 'xlsx' || format.toLowerCase() === 'excel';
+    const filename = `coding_data_${new Date().toISOString().split('T')[0]}.${isExcel ? 'xlsx' : 'csv'}`;
+    
+    if (isExcel) {
+      const buffer = convertToExcel(data, 'Coding Data');
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       return res.send(buffer);
     } else {
-      const headers = Object.keys(data[0] || {});
-      const csv = convertToCSV(data, headers);
-      const filename = identityLinked === 'true' 
-        ? 'codings-identity-linked.csv' 
-        : 'codings-deidentified.csv';
+      const csv = convertToCSV(data);
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       return res.send(csv);
@@ -320,225 +282,181 @@ const exportCodings = async (req, res) => {
 };
 
 /**
- * Export combined research dataset
- * GET /api/admin/export/research-dataset?format=csv&identityLinked=false
- * UPDATED: Comprehensive dataset with participant name + all responses + all coding data
- * This is the complete participant journey with all their data
+ * 4. Export combined research dataset
+ * GET /api/admin/export/research-dataset?format=csv
+ * Complete research record for every participant: Participant Data + Responses + Coding Data
  */
 const exportResearchDataset = async (req, res) => {
   try {
-    const { format = 'csv', identityLinked = 'false', condition } = req.query;
+    const { format = 'csv', condition } = req.query;
     
-    // Get all participants with optional condition filter
-    let participantQuery = {};
+    const participantQuery = {};
     if (condition) {
       participantQuery.condition = condition;
     }
     
-    const participants = await Participant.find(participantQuery).sort({ createdAt: 1 });
+    const participants = await Participant.find(participantQuery).sort({ name: 1, createdAt: 1 }).lean();
     
-    // Get all responses
+    // Fetch all responses and codings
     const allResponses = await VideoResponse.find({})
-      .populate('participant', '_id name username age gender university department condition status')
-      .populate('video', 'title order topic')
+      .populate('video')
       .lean();
     
-    // Get all codings
     const allCodings = await Coding.find({ coderRole: 'primary' })
       .populate('codedBy', 'name username')
+      .populate('reviewedBy', 'name username')
       .lean();
     
-    // Create maps for efficient lookup
-    const responsesByParticipant = {};
-    allResponses.forEach(r => {
-      const participantId = r.participant?._id?.toString();
-      if (participantId) {
-        if (!responsesByParticipant[participantId]) {
-          responsesByParticipant[participantId] = [];
+    // Map responses by participant ID
+    const responsesByParticipant = new Map();
+    for (const r of allResponses) {
+      const pid = r.participant ? r.participant.toString() : null;
+      if (pid) {
+        if (!responsesByParticipant.has(pid)) {
+          responsesByParticipant.set(pid, []);
         }
-        responsesByParticipant[participantId].push(r);
+        responsesByParticipant.get(pid).push(r);
       }
-    });
+    }
     
-    const codingsByResponse = {};
-    allCodings.forEach(c => {
-      const responseId = c.response?.toString();
-      if (responseId) {
-        codingsByResponse[responseId] = c;
+    // Map codings by response ID
+    const codingsByResponse = new Map();
+    for (const c of allCodings) {
+      const rid = c.response ? c.response.toString() : null;
+      if (rid) {
+        codingsByResponse.set(rid, c);
       }
-    });
+    }
     
-    // Build comprehensive dataset - one row per response with full participant data
     const data = [];
-    let responseCounter = 0;
     
-    participants.forEach((participant, pIndex) => {
-      const participantId = participant._id.toString();
-      const responses = responsesByParticipant[participantId] || [];
+    for (const p of participants) {
+      const pid = p._id.toString();
+      const pResponses = responsesByParticipant.get(pid) || [];
       
-      // If participant has responses, create one row per response
-      if (responses.length > 0) {
-        responses.forEach(response => {
-          responseCounter++;
-          const coding = codingsByResponse[response._id.toString()];
+      // Sort responses by video order
+      pResponses.sort((a, b) => (a.video?.order ?? 999) - (b.video?.order ?? 999));
+      
+      if (pResponses.length > 0) {
+        for (const r of pResponses) {
+          const rid = r._id.toString();
+          const coding = codingsByResponse.get(rid) || null;
           
-          const rowData = {
-            // IDs
-            recordId: `REC${String(responseCounter).padStart(4, '0')}`,
-            participantId: `P${String(pIndex + 1).padStart(3, '0')}`,
-            responseId: `R${String(responseCounter).padStart(4, '0')}`,
-            codingId: coding ? `C${String(responseCounter).padStart(4, '0')}` : '',
+          data.push({
+            // Participant Information
+            'Participant Name': p.name || '',
+            'Username': p.username || '',
+            'Age': p.age ?? '',
+            'Gender': p.gender || '',
+            'University': p.university || '',
+            'Department': p.department || '',
+            'Condition': p.condition || '',
+            'Study Status': p.status || '',
+            'Consent Given': p.consentGiven ? 'Yes' : 'No',
+            'Consent Date': formatDate(p.consentAt),
+            'Completed Videos Count': Array.isArray(p.completedVideos) ? p.completedVideos.length : 0,
+            'Experiment Started At': formatDate(p.experimentStartedAt),
+            'Completed At': formatDate(p.completedAt),
+            'Participant Database ID': pid,
             
-            // Participant Demographics (FULL DATA)
-            participantName: participant.name || '',
-            participantUsername: participant.username || '',
-            participantAge: participant.age || '',
-            participantGender: participant.gender || '',
-            participantUniversity: participant.university || '',
-            participantDepartment: participant.department || '',
+            // Response Information
+            'Video Number': r.video?.order !== undefined ? r.video.order : '',
+            'Video Title': r.video?.title || '',
+            'Video Topic': r.video?.topic || '',
+            'Response Text': r.responseText || '',
+            'Response Word Count': r.responseWordCount ?? 0,
+            'Response Character Length': r.responseLength ?? 0,
+            'Response Time (seconds)': r.responseTime ?? '',
+            'Response Submitted At': formatDate(r.submittedAt),
+            'Response Database ID': rid,
             
-            // Participant Study Info
-            condition: participant.condition || '',
-            participantStatus: participant.status || '',
-            consentGiven: participant.consentGiven !== undefined ? participant.consentGiven : false,
-            consentDate: participant.consentAt ? new Date(participant.consentAt).toISOString() : '',
-            experimentStartedAt: participant.experimentStartedAt ? new Date(participant.experimentStartedAt).toISOString() : '',
-            completedAt: participant.completedAt ? new Date(participant.completedAt).toISOString() : '',
-            completedVideosCount: participant.completedVideos ? participant.completedVideos.length : 0,
-            
-            // Video Information
-            videoTitle: response.video?.title || '',
-            videoOrder: response.video?.order || '',
-            videoTopic: response.video?.topic || '',
-            
-            // Response Data (FULL RESPONSE)
-            responseText: response.responseText || '',
-            responseLength: response.responseLength || 0,
-            responseWordCount: response.responseWordCount || 0,
-            responseTime: response.responseTime || '',
-            responseSubmittedAt: response.submittedAt ? new Date(response.submittedAt).toISOString() : '',
-            
-            // Coding Status
-            coded: !!coding,
-            
-            // Coding Results (ALL CODING DATA)
-            sentiment: coding?.sentiment || '',
-            sentimentScore: coding?.sentimentScore !== undefined ? coding.sentimentScore : '',
-            
-            aggressionLevel: coding?.aggression?.level !== undefined ? coding.aggression.level : '',
-            aggressionCategory: coding?.aggression?.category || '',
-            aggressionScore: coding?.aggression?.score !== undefined ? coding.aggression.score : '',
-            aggressionIndicators: coding?.aggression?.indicators ? coding.aggression.indicators.join('; ') : '',
-            
-            cyberbullyingPresent: coding?.cyberbullying?.present !== undefined ? coding.cyberbullying.present : '',
-            cyberbullyingType: coding?.cyberbullying?.type || '',
-            cyberbullyingSeverity: coding?.cyberbullying?.severity !== undefined ? coding.cyberbullying.severity : '',
-            cyberbullyingIndicators: coding?.cyberbullying?.indicators ? coding.cyberbullying.indicators.join('; ') : '',
-            
-            // Coding Metadata
-            codingNotes: coding?.notes || '',
-            coder: coding?.codedBy?.name || '',
-            coderUsername: coding?.codedBy?.username || '',
-            codingVersion: coding?.codingVersion || '',
-            codingConfidence: coding?.confidence || '',
-            codedAt: coding?.codedAt ? new Date(coding.codedAt).toISOString() : ''
-          };
-          
-          // For de-identified, remove personally identifiable information
-          if (identityLinked === 'false') {
-            delete rowData.participantName;
-            delete rowData.participantUsername;
-            delete rowData.participantAge;
-            delete rowData.participantGender;
-            delete rowData.participantUniversity;
-            delete rowData.participantDepartment;
-          }
-          
-          data.push(rowData);
-        });
-      } else {
-        // Participant has no responses - include their info anyway
-        const rowData = {
-          recordId: `REC${String(responseCounter + 1).padStart(4, '0')}`,
-          participantId: `P${String(pIndex + 1).padStart(3, '0')}`,
-          responseId: '',
-          codingId: '',
-          
-          // Participant Demographics
-          participantName: participant.name || '',
-          participantUsername: participant.username || '',
-          participantAge: participant.age || '',
-          participantGender: participant.gender || '',
-          participantUniversity: participant.university || '',
-          participantDepartment: participant.department || '',
-          
-          // Participant Study Info
-          condition: participant.condition || '',
-          participantStatus: participant.status || '',
-          consentGiven: participant.consentGiven !== undefined ? participant.consentGiven : false,
-          consentDate: participant.consentAt ? new Date(participant.consentAt).toISOString() : '',
-          experimentStartedAt: participant.experimentStartedAt ? new Date(participant.experimentStartedAt).toISOString() : '',
-          completedAt: participant.completedAt ? new Date(participant.completedAt).toISOString() : '',
-          completedVideosCount: participant.completedVideos ? participant.completedVideos.length : 0,
-          
-          // Empty response and coding fields
-          videoTitle: '',
-          videoOrder: '',
-          videoTopic: '',
-          responseText: '',
-          responseLength: 0,
-          responseWordCount: 0,
-          responseTime: '',
-          responseSubmittedAt: '',
-          coded: false,
-          sentiment: '',
-          sentimentScore: '',
-          aggressionLevel: '',
-          aggressionCategory: '',
-          aggressionScore: '',
-          aggressionIndicators: '',
-          cyberbullyingPresent: '',
-          cyberbullyingType: '',
-          cyberbullyingSeverity: '',
-          cyberbullyingIndicators: '',
-          codingNotes: '',
-          coder: '',
-          coderUsername: '',
-          codingVersion: '',
-          codingConfidence: '',
-          codedAt: ''
-        };
-        
-        // For de-identified, remove personally identifiable information
-        if (identityLinked === 'false') {
-          delete rowData.participantName;
-          delete rowData.participantUsername;
-          delete rowData.participantAge;
-          delete rowData.participantGender;
-          delete rowData.participantUniversity;
-          delete rowData.participantDepartment;
+            // Coding Information
+            'Coding Status': coding ? 'CODED' : 'UNCODED',
+            'Sentiment': coding?.sentiment || '',
+            'Sentiment Score': coding?.sentimentScore !== undefined && coding?.sentimentScore !== null ? coding.sentimentScore : '',
+            'Aggression Level': coding?.aggression?.level !== undefined && coding?.aggression?.level !== null ? coding.aggression.level : '',
+            'Aggression Category': coding?.aggression?.category || '',
+            'Aggression Score': coding?.aggression?.score !== undefined && coding?.aggression?.score !== null ? coding.aggression.score : '',
+            'Aggression Indicators': Array.isArray(coding?.aggression?.indicators) ? coding.aggression.indicators.join('; ') : '',
+            'Cyberbullying Present': coding?.cyberbullying?.present !== undefined && coding?.cyberbullying?.present !== null ? (coding.cyberbullying.present ? 'Yes' : 'No') : '',
+            'Cyberbullying Type': coding?.cyberbullying?.type || '',
+            'Cyberbullying Severity': coding?.cyberbullying?.severity !== undefined && coding?.cyberbullying?.severity !== null ? coding.cyberbullying.severity : '',
+            'Cyberbullying Score': coding?.cyberbullying?.score !== undefined && coding?.cyberbullying?.score !== null ? coding.cyberbullying.score : '',
+            'Cyberbullying Indicators': Array.isArray(coding?.cyberbullying?.indicators) ? coding.cyberbullying.indicators.join('; ') : '',
+            'Coding Confidence': coding?.confidence || '',
+            'Coding Notes': coding?.notes || '',
+            'Coder Name': coding?.codedBy?.name || '',
+            'Coder Username': coding?.codedBy?.username || '',
+            'Review Status': coding?.reviewStatus || '',
+            'Reviewer Name': coding?.reviewedBy?.name || '',
+            'Coding Version': coding?.codingVersion || '',
+            'Coded At': formatDate(coding?.codedAt),
+            'Coding Database ID': coding ? coding._id.toString() : ''
+          });
         }
-        
-        data.push(rowData);
+      } else {
+        // Participant has no responses yet - retain participant row with blank response and coding values
+        data.push({
+          'Participant Name': p.name || '',
+          'Username': p.username || '',
+          'Age': p.age ?? '',
+          'Gender': p.gender || '',
+          'University': p.university || '',
+          'Department': p.department || '',
+          'Condition': p.condition || '',
+          'Study Status': p.status || '',
+          'Consent Given': p.consentGiven ? 'Yes' : 'No',
+          'Consent Date': formatDate(p.consentAt),
+          'Completed Videos Count': Array.isArray(p.completedVideos) ? p.completedVideos.length : 0,
+          'Experiment Started At': formatDate(p.experimentStartedAt),
+          'Completed At': formatDate(p.completedAt),
+          'Participant Database ID': pid,
+          
+          'Video Number': '',
+          'Video Title': '',
+          'Video Topic': '',
+          'Response Text': '',
+          'Response Word Count': '',
+          'Response Character Length': '',
+          'Response Time (seconds)': '',
+          'Response Submitted At': '',
+          'Response Database ID': '',
+          
+          'Coding Status': 'UNCODED',
+          'Sentiment': '',
+          'Sentiment Score': '',
+          'Aggression Level': '',
+          'Aggression Category': '',
+          'Aggression Score': '',
+          'Aggression Indicators': '',
+          'Cyberbullying Present': '',
+          'Cyberbullying Type': '',
+          'Cyberbullying Severity': '',
+          'Cyberbullying Score': '',
+          'Cyberbullying Indicators': '',
+          'Coding Confidence': '',
+          'Coding Notes': '',
+          'Coder Name': '',
+          'Coder Username': '',
+          'Review Status': '',
+          'Reviewer Name': '',
+          'Coding Version': '',
+          'Coded At': '',
+          'Coding Database ID': ''
+        });
       }
-    });
+    }
     
-    if (format === 'xlsx' || format === 'excel') {
-      const buffer = convertToExcel(data, 'Research Dataset');
-      const filename = identityLinked === 'true' 
-        ? 'research-dataset-identity-linked.xlsx' 
-        : 'research-dataset-deidentified.xlsx';
-      
+    const isExcel = format.toLowerCase() === 'xlsx' || format.toLowerCase() === 'excel';
+    const filename = `combined_research_dataset_${new Date().toISOString().split('T')[0]}.${isExcel ? 'xlsx' : 'csv'}`;
+    
+    if (isExcel) {
+      const buffer = convertToExcel(data, 'Combined Research Dataset');
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       return res.send(buffer);
     } else {
-      const headers = Object.keys(data[0] || {});
-      const csv = convertToCSV(data, headers);
-      const filename = identityLinked === 'true' 
-        ? 'research-dataset-identity-linked.csv' 
-        : 'research-dataset-deidentified.csv';
-      
+      const csv = convertToCSV(data);
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       return res.send(csv);

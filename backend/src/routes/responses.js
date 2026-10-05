@@ -1,6 +1,6 @@
 const express = require('express');
 const responseManagementController = require('../controllers/responseManagementController');
-const { extractAdminId, authenticateAdmin } = require('../middleware/adminAuth');
+const { extractAdminId, authenticateAdmin, requireResearcher } = require('../middleware/adminAuth');
 
 const router = express.Router();
 
@@ -43,5 +43,11 @@ router.get('/stats', optionalAdminAuth, responseManagementController.getStatisti
  * Get single response by ID
  */
 router.get('/:id', optionalAdminAuth, responseManagementController.getResponseById);
+
+/**
+ * DELETE /api/responses/:id
+ * Delete single response by ID
+ */
+router.delete('/:id', authenticateAdmin, requireResearcher, responseManagementController.deleteResponse);
 
 module.exports = router;

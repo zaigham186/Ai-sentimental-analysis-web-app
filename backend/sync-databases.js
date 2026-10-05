@@ -23,12 +23,12 @@ const COLLECTIONS = [
 async function syncDatabases() {
   console.log('='.repeat(70));
   console.log('  MONGODB ATLAS DATABASE SYNCHRONIZATION');
-  console.log('  Source: test (Live Production DB)');
-  console.log('  Target: cyberbullying-research');
+  console.log('  Source: cyberbullying-research (Production Master DB)');
+  console.log('  Target: test (Development/Backup DB)');
   console.log('='.repeat(70));
 
-  const sourceConn = await mongoose.createConnection(BASE_URI + 'test?appName=Cluster1').asPromise();
-  const targetConn = await mongoose.createConnection(BASE_URI + 'cyberbullying-research?appName=Cluster1').asPromise();
+  const sourceConn = await mongoose.createConnection(BASE_URI + 'cyberbullying-research?appName=Cluster1').asPromise();
+  const targetConn = await mongoose.createConnection(BASE_URI + 'test?appName=Cluster1').asPromise();
 
   console.log(' Connected to both databases.\n');
 

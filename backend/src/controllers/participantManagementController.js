@@ -26,15 +26,18 @@ const getAllParticipants = async (req, res) => {
     }
 
     if (gender) {
-      // Case-insensitive gender match to handle both "Male"/"male" and "Female"/"female"
-      query.gender = new RegExp(`^${gender}$`, 'i');
+      // Case-insensitive gender match that flexibly handles spacing, hyphens, and underscores
+      const cleanGender = gender.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[_\s-]+/g, '[_\\s-]*');
+      query.gender = new RegExp(`^${cleanGender}$`, 'i');
     }
     
     if (search) {
+      const searchRegex = { $regex: search, $options: 'i' };
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { username: { $regex: search, $options: 'i' } },
-        { department: { $regex: search, $options: 'i' } }
+        { name: searchRegex },
+        { username: searchRegex },
+        { department: searchRegex },
+        { gender: searchRegex }
       ];
     }
 

@@ -1265,6 +1265,11 @@ export default function AdminCodingPage() {
           title="Delete Coding Response"
         >
           <div className="space-y-4">
+            {deleteError && (
+              <Alert variant="error">
+                {deleteError}
+              </Alert>
+            )}
             <p className="text-sm text-gray-600">
               Are you sure you want to delete this response? This will permanently remove the response and any associated coding analysis. This action cannot be undone.
             </p>

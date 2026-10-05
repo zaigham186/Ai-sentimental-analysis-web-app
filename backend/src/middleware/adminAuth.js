@@ -201,15 +201,7 @@ const requirePermission = (permission) => {
  * Prevents duplicate login
  */
 const checkExistingAdminSession = (req, res, next) => {
-  const adminId = extractAdminId(req);
-
-  if (adminId && mongoose.Types.ObjectId.isValid(adminId)) {
-    return res.status(400).json({
-      success: false,
-      message: 'Already logged in as admin'
-    });
-  }
-
+  // Pass through so administrator can re-authenticate or refresh their session cleanly
   next();
 };
 

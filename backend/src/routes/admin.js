@@ -32,7 +32,7 @@ const router = express.Router();
  * Public route (no authentication required)
  * Hardened with authLimiter for brute-force protection
  */
-router.post('/login', authLimiter, checkExistingAdminSession, adminController.login);
+router.post('/login', authLimiter, adminController.login);
 
 /**
  * POST /api/admin/logout

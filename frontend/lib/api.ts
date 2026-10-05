@@ -297,6 +297,7 @@ export const api = {
       username: string;
       password: string;
     }) => {
+      authStorage.clearAdminToken();
       const res = await fetchAPI('/api/admin/login', { method: 'POST', body: data });
       if (res.data?.sessionToken || res.data?.id) {
         authStorage.setAdminToken(res.data.sessionToken || res.data.id);
@@ -431,6 +432,9 @@ export const api = {
 
       // Delete response with coding
       deleteResponse: (id: string) => fetchAPI(`/api/admin/coding/responses/${id}`, { method: 'DELETE' }),
+
+      // Delete coding alias
+      deleteCoding: (id: string) => fetchAPI(`/api/admin/coding/${id}`, { method: 'DELETE' }),
 
       // Create coding
       create: (data: {
@@ -610,7 +614,8 @@ export const api = {
         if (params?.identityLinked !== undefined) queryParams.append('identityLinked', params.identityLinked.toString());
         if (params?.condition) queryParams.append('condition', params.condition);
         const query = queryParams.toString();
-        return `${API_URL}/api/admin/export/participants${query ? `?${query}` : ''}`;
+        const base = getApiBaseUrl();
+        return `${base}/api/admin/export/participants${query ? `?${query}` : ''}`;
       },
 
       // Export responses
@@ -626,7 +631,8 @@ export const api = {
         if (params?.condition) queryParams.append('condition', params.condition);
         if (params?.video) queryParams.append('video', params.video);
         const query = queryParams.toString();
-        return `${API_URL}/api/admin/export/responses${query ? `?${query}` : ''}`;
+        const base = getApiBaseUrl();
+        return `${base}/api/admin/export/responses${query ? `?${query}` : ''}`;
       },
 
       // Export codings
@@ -638,7 +644,8 @@ export const api = {
         if (params?.format) queryParams.append('format', params.format);
         if (params?.condition) queryParams.append('condition', params.condition);
         const query = queryParams.toString();
-        return `${API_URL}/api/admin/export/codings${query ? `?${query}` : ''}`;
+        const base = getApiBaseUrl();
+        return `${base}/api/admin/export/codings${query ? `?${query}` : ''}`;
       },
 
       // Export research dataset
@@ -652,7 +659,8 @@ export const api = {
         if (params?.identityLinked !== undefined) queryParams.append('identityLinked', params.identityLinked.toString());
         if (params?.condition) queryParams.append('condition', params.condition);
         const query = queryParams.toString();
-        return `${API_URL}/api/admin/export/research-dataset${query ? `?${query}` : ''}`;
+        const base = getApiBaseUrl();
+        return `${base}/api/admin/export/research-dataset${query ? `?${query}` : ''}`;
       },
 
       // Get data quality check
