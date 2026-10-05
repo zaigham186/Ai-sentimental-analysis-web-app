@@ -13,14 +13,18 @@ import type { Admin, DataQuality } from '@/types';
 /**
  * Research Data Export Page
  * 
- * Provides 4 distinct, accurate participant-level research datasets:
- * 1. Participant Data: All participant records with complete database fields
- * 2. Responses Data: Participant Name + their responses (traceable, stimulus-ordered)
- * 3. Coding Data: Participant Name + Responses + Coding Results (accurately connected)
- * 4. Combined Research Dataset: Comprehensive analysis record (Participant + Responses + Coding)
+ * Provides 4 distinct, accurate participant-level research datasets for supervisors and inspectors:
+ * 1. Participant Data: All original student participant records with full demographics & study metrics
+ * 2. Responses Data: Participant Name + student demographics + sequential stimulus responses
+ * 3. Coding Data: Participant Name + student demographics + responses + qualitative/quantitative coding outcomes
+ * 4. Combined Research Dataset: Primary master dataset combining Participant Demographics + Responses + Coding
  * 
- * Note: De-identified export options removed per research protocol requirements.
- * Participant names are consistently maintained across all four datasets.
+ * DESIGN PRINCIPLES:
+ * - Identified strictly by Participant Name & student profile (NO raw database IDs / ObjectIds / internal mongo hashes)
+ * - Zero irrelevant technical metadata (no _id, __v, or ObjectId strings)
+ * - 100% accurate database records consistent with the live Admin Panel
+ * - Standardized human-readable dates and title casing for academic review
+ * - Available in both CSV and Microsoft Excel (.xlsx) formats
  */
 
 export default function AdminExportPage() {
@@ -173,7 +177,7 @@ export default function AdminExportPage() {
                 <h1 className="text-2xl font-bold text-gray-900">Research Data Export</h1>
               </div>
               <p className="mt-1 text-sm text-gray-600">
-                Export accurate, participant-level datasets for empirical research in SPSS, R, Python, Stata, and Excel.
+                Export complete, accurate participant-level datasets for academic supervisors, inspectors, and statistical packages (SPSS, R, Python, Stata, Excel).
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -181,7 +185,7 @@ export default function AdminExportPage() {
                 ✓ Verified DB Records
               </span>
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                Consistent Participant ID
+                Real Participant Names (No IDs)
               </span>
             </div>
           </div>
@@ -280,35 +284,40 @@ export default function AdminExportPage() {
                       Primary Analysis File
                     </span>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                      Participant + Responses + Coding
+                      Student Details + Responses + Coding
                     </span>
                   </div>
 
                   <p className="text-sm text-gray-700 leading-relaxed">
-                    Provides the <strong>complete research record for every participant</strong> by combining all stored database information: 
-                    full participant demographics, sequential video responses, and qualitative/AI coding results. 
-                    Accurately linked through unique participant and response identifiers with consistent participant names.
+                    Provides the <strong>complete empirical research record for every participant</strong> by uniting all stored database records: 
+                    full participant demographics (Name, Age, Gender, University, Department), sequential video responses, and qualitative/quantitative coding outcomes. 
+                    Identified clearly by participant name without internal database IDs.
                   </p>
 
                   <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-lg text-xs text-blue-900 space-y-1">
                     <div className="font-semibold text-blue-950 flex items-center gap-1.5">
-                      <span>💡</span> Recommended for statistical packages (SPSS, R, Python, Stata):
+                      <span>💡</span> Formatted for Supervisor / Inspector Review &amp; Statistical Analysis (SPSS, R, Python, Stata):
                     </div>
                     <div>
-                      Each row captures a participant&apos;s response linked to its coding result. If a participant has not completed responses, their record is preserved with null fields so no cohort data is lost.
+                      Each row contains a student&apos;s full profile, sequential response, and associated coding outcomes. If a participant has not completed all responses, their participant record is preserved with null response fields so no student data is lost.
                     </div>
                   </div>
 
                   {/* Schema Preview */}
                   <div className="pt-1">
                     <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                      Included Columns Preview:
+                      Included Columns:
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {[
                         'Participant Name', 'Username', 'Age', 'Gender', 'University', 'Department',
-                        'Condition', 'Status', 'Consent Date', 'Video Number', 'Video Title', 'Response Text',
-                        'Word Count', 'Response Time', 'Sentiment', 'Aggression Level', 'Cyberbullying Present',
+                        'Assigned Condition', 'Study Status', 'Consent Given', 'Consent Date',
+                        'Completed Videos Count', 'Total Responses Submitted', 'Total Responses Coded',
+                        'Registration Date', 'Experiment Started Date', 'Experiment Completed Date',
+                        'Study Duration (Minutes)', 'Video Number', 'Video Title', 'Response Text',
+                        'Word Count', 'Character Length', 'Response Time (Seconds)', 'Response Submitted Date',
+                        'Coding Status', 'Sentiment', 'Aggression Level (0-10)', 'Aggression Category',
+                        'Cyberbullying Present', 'Cyberbullying Type', 'Cyberbullying Severity (0-10)',
                         'Coding Confidence', 'Coder Name', 'Review Status'
                       ].map((col, idx) => (
                         <span key={idx} className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-[11px] font-mono text-gray-700">
@@ -380,24 +389,26 @@ export default function AdminExportPage() {
                       Participant Data
                     </h2>
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
-                      Demographics &amp; Consent Only
+                      Student Demographics &amp; Progress Only
                     </span>
                   </div>
 
                   <p className="text-sm text-gray-600 leading-relaxed">
-                    Contains <strong>all participant records</strong> from the database. Includes consistent participant names, usernames, age, gender, university, department, condition assignment, consent status, and study progression timestamps. Does not include response texts or coding outcomes.
+                    Contains <strong>all student participant records</strong> from the database with real participant names, usernames, age, gender, university, department, condition assignment, consent verification, study progression counts, and completion timestamps. Completely free of database IDs.
                   </p>
 
                   {/* Schema Preview */}
                   <div className="pt-1">
                     <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                      Dataset Structure:
+                      Included Columns:
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {[
                         'Participant Name', 'Username', 'Age', 'Gender', 'University', 'Department',
-                        'Condition', 'Condition Assigned', 'Consent Given', 'Consent Date',
-                        'Study Status', 'Completed Videos Count', 'Registered Date', 'Participant Database ID'
+                        'Assigned Condition', 'Condition Assigned', 'Condition Assignment Date',
+                        'Consent Given', 'Consent Date', 'Study Status', 'Completed Videos Count',
+                        'Total Responses Submitted', 'Total Responses Coded', 'Registration Date',
+                        'Experiment Started Date', 'Experiment Completed Date', 'Study Duration (Minutes)'
                       ].map((col, idx) => (
                         <span key={idx} className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-[11px] font-mono text-gray-700">
                           {col}
@@ -462,24 +473,25 @@ export default function AdminExportPage() {
                       Responses Data
                     </h2>
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
-                      Participant Name + Responses
+                      Student Demographics + Stimulus Responses
                     </span>
                   </div>
 
                   <p className="text-sm text-gray-600 leading-relaxed">
-                    Contains the <strong>participant&apos;s name + their complete video responses</strong>. Every response is accurately associated with its participant and organized sequentially by stimulus video number. Preserves full response texts, word counts, response durations, and submission timestamps.
+                    Contains the <strong>participant&apos;s name + complete student demographics + their actual video responses</strong>. Every response is accurately associated with the participant and organized sequentially by stimulus video number. Preserves full response texts, word counts, response durations, coding status, and submission timestamps without database IDs.
                   </p>
 
                   {/* Schema Preview */}
                   <div className="pt-1">
                     <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                      Dataset Structure:
+                      Included Columns:
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {[
-                        'Participant Name', 'Username', 'Condition', 'Video Number', 'Video Title',
-                        'Video Topic', 'Response Text', 'Response Word Count', 'Response Character Length',
-                        'Response Time (seconds)', 'Submitted At', 'Response Database ID'
+                        'Participant Name', 'Username', 'Age', 'Gender', 'University', 'Department',
+                        'Assigned Condition', 'Study Status', 'Video Number', 'Video Title', 'Video Topic',
+                        'Response Text', 'Response Word Count', 'Response Character Length',
+                        'Response Time (Seconds)', 'Coding Status', 'Response Submitted Date'
                       ].map((col, idx) => (
                         <span key={idx} className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-[11px] font-mono text-gray-700">
                           {col}
@@ -549,20 +561,22 @@ export default function AdminExportPage() {
                   </div>
 
                   <p className="text-sm text-gray-600 leading-relaxed">
-                    Correctly matches <strong>Participant &rarr; Response &rarr; Coding Result</strong>. Preserves actual coding dimensions from the database: sentiment classification, aggression level &amp; category, cyberbullying presence/type/severity, empirical indicators, coder credentials, confidence score, and supervisor review status.
+                    Correctly matches <strong>Participant &rarr; Response &rarr; Coding Result</strong>. Includes participant name, student demographics, stimulus video, exact response text, sentiment classification, aggression level &amp; category, cyberbullying presence/type/severity, coder credentials, confidence score, and review status without database IDs.
                   </p>
 
                   {/* Schema Preview */}
                   <div className="pt-1">
                     <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                      Dataset Structure:
+                      Included Columns:
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {[
-                        'Participant Name', 'Username', 'Video Title', 'Response Text', 'Sentiment',
-                        'Sentiment Score', 'Aggression Level', 'Aggression Category', 'Aggression Indicators',
-                        'Cyberbullying Present', 'Cyberbullying Type', 'Cyberbullying Severity',
-                        'Coding Confidence', 'Coding Notes', 'Coder Name', 'Review Status', 'Coded At'
+                        'Participant Name', 'Username', 'Age', 'Gender', 'University', 'Department',
+                        'Assigned Condition', 'Video Number', 'Video Title', 'Response Text',
+                        'Response Word Count', 'Response Time (Seconds)', 'Response Submitted Date',
+                        'Sentiment', 'Aggression Level (0-10)', 'Aggression Category', 'Cyberbullying Present',
+                        'Cyberbullying Type', 'Cyberbullying Severity (0-10)', 'Coding Confidence',
+                        'Coding Notes', 'Coder Name', 'Review Status', 'Coded Date'
                       ].map((col, idx) => (
                         <span key={idx} className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-[11px] font-mono text-gray-700">
                           {col}
