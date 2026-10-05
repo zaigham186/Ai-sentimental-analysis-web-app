@@ -99,6 +99,11 @@ export default function AdminParticipantsPage() {
   };
 
   const handleDeleteClick = (participant: ParticipantWithStats) => {
+    console.log('Delete clicked for participant:', {
+      id: participant._id,
+      name: participant.name,
+      username: participant.username
+    });
     setParticipantToDelete(participant);
     setDeleteError(null);
     setDeleteModalOpen(true);
@@ -106,23 +111,48 @@ export default function AdminParticipantsPage() {
 
   const handleConfirmDelete = async () => {
     if (!participantToDelete) return;
+    const participantId = participantToDelete._id;
+    
+    if (!participantId) {
+      setDeleteError('Invalid participant ID');
+      return;
+    }
+
+    console.log('Attempting to delete participant with ID:', participantId);
+    
     try {
       setIsDeleting(true);
       setDeleteError(null);
-      await api.admin.participants.delete(participantToDelete._id);
+      
+      const response = await api.admin.participants.delete(participantId);
+      console.log('Delete response:', response);
+      
       setSuccessMessage(`Participant "${participantToDelete.name}" and all associated responses/data were deleted successfully.`);
       setParticipants(prev => prev.filter(p => p._id !== participantToDelete._id));
       setDeleteModalOpen(false);
       setParticipantToDelete(null);
+      
       // Refresh stats
       try {
         const statsResponse = await api.admin.participants.stats();
         setStats(statsResponse.data);
       } catch (e) {
-        // silent error on stats refresh
+        console.error('Failed to refresh stats:', e);
       }
     } catch (err: any) {
-      setDeleteError(err.message || 'Failed to delete participant');
+      console.error('Delete participant error:', err);
+      const errorMessage = err.message || err.data?.message || 'Failed to delete participant';
+      setDeleteError(errorMessage);
+      
+      // If 404, explain that the participant might not exist
+      if (err.status === 404 || errorMessage.includes('not found') || errorMessage.includes('Not found')) {
+        setDeleteError('This participant was not found in the database. It may have been already deleted. The page will refresh.');
+        setTimeout(() => {
+          loadData(); // Refresh the list
+          setDeleteModalOpen(false);
+          setParticipantToDelete(null);
+        }, 2000);
+      }
     } finally {
       setIsDeleting(false);
     }

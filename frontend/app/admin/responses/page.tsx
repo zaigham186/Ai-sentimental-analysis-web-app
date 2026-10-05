@@ -191,6 +191,11 @@ export default function AdminResponsesPage() {
   }, [loadData]);
 
   const handleDeleteClick = (response: ResponseWithDetails) => {
+    console.log('Delete clicked for response:', {
+      id: response._id || response.id,
+      participant: response.participant?.name,
+      video: response.video?.title
+    });
     setResponseToDelete(response);
     setDeleteError(null);
     setDeleteModalOpen(true);
@@ -199,12 +204,19 @@ export default function AdminResponsesPage() {
   const handleConfirmDelete = async () => {
     if (!responseToDelete) return;
     const targetId = responseToDelete._id || responseToDelete.id;
-    if (!targetId) return;
+    if (!targetId) {
+      setDeleteError('Invalid response ID');
+      return;
+    }
+
+    console.log('Attempting to delete response with ID:', targetId);
 
     try {
       setIsDeleting(true);
       setDeleteError(null);
-      await api.admin.responses.delete(targetId);
+      
+      const response = await api.admin.responses.delete(targetId);
+      console.log('Delete response:', response);
 
       // Immediately update local UI list
       setResponses(prev => prev.filter(r => (r._id || r.id) !== targetId));
@@ -225,7 +237,18 @@ export default function AdminResponsesPage() {
       }, 5000);
     } catch (err: any) {
       console.error('Delete response error:', err);
-      setDeleteError(err.message || 'Failed to delete response. Please try again.');
+      const errorMessage = err.message || err.data?.message || 'Failed to delete response';
+      setDeleteError(errorMessage);
+      
+      // If 404, explain that the response might not exist
+      if (err.status === 404 || errorMessage.includes('not found') || errorMessage.includes('Not found')) {
+        setDeleteError('This response was not found in the database. It may have been already deleted. The page will refresh.');
+        setTimeout(() => {
+          loadData(); // Refresh the list
+          setDeleteModalOpen(false);
+          setResponseToDelete(null);
+        }, 2000);
+      }
     } finally {
       setIsDeleting(false);
     }

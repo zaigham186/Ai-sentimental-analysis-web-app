@@ -64,12 +64,13 @@ export default function AdminExportPage() {
     }
   };
 
-  const handleExport = (
+  const handleExport = async (
     type: 'participants' | 'responses' | 'codings' | 'research-dataset',
     format: 'csv' | 'xlsx',
     identityLinked: boolean = false
   ) => {
     setExporting(true);
+    setError(null);
     
     try {
       let url = '';
@@ -96,12 +97,48 @@ export default function AdminExportPage() {
           break;
       }
 
-      // Trigger download
-      window.location.href = url;
+      // Use fetch API to download with authentication
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminSession') || sessionStorage.getItem('adminSession') || ''}`,
+          'x-admin-session': localStorage.getItem('adminSession') || sessionStorage.getItem('adminSession') || ''
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Export failed' }));
+        throw new Error(errorData.message || `Export failed with status ${response.status}`);
+      }
+
+      // Get the filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `${type}_export_${new Date().toISOString().split('T')[0]}.${format}`;
+      if (contentDisposition) {
+        const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition);
+        if (matches != null && matches[1]) {
+          filename = matches[1].replace(/['"]/g, '');
+        }
+      }
+
+      // Create blob from response
+      const blob = await response.blob();
+      
+      // Create download link
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
       
       setTimeout(() => setExporting(false), 1000);
     } catch (err: any) {
-      setError(err.message || 'Export failed');
+      console.error('Export error:', err);
+      setError(err.message || 'Export failed. Please try again.');
       setExporting(false);
     }
   };
