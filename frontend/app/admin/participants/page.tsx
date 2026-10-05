@@ -132,6 +132,10 @@ export default function AdminParticipantsPage() {
       setDeleteModalOpen(false);
       setParticipantToDelete(null);
       
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 5000);
+      
       // Refresh stats
       try {
         const statsResponse = await api.admin.participants.stats();
@@ -464,6 +468,11 @@ export default function AdminParticipantsPage() {
           title="Delete Participant"
         >
           <div className="space-y-4">
+            {deleteError && (
+              <Alert variant="error">
+                {deleteError}
+              </Alert>
+            )}
             <p className="text-sm text-gray-600">
               Are you sure you want to delete this participant? This will permanently delete the participant and all their associated responses, codings, and records. This action cannot be undone.
             </p>
