@@ -35,7 +35,8 @@ async function buildResponseQueryAndResults(queryParams = {}) {
     pFilter.condition = condition;
   }
   if (gender) {
-    pFilter.gender = gender.toLowerCase();
+    // Case-insensitive gender match to handle both "Male"/"male" and "Female"/"female"
+    pFilter.gender = new RegExp(`^${gender}$`, 'i');
   }
   const allActiveParticipants = await Participant.find(pFilter)
     .sort({ name: 1, createdAt: 1 })
@@ -73,7 +74,8 @@ async function buildResponseQueryAndResults(queryParams = {}) {
       participantFilter.condition = condition;
     }
     if (gender) {
-      participantFilter.gender = gender.toLowerCase();
+      // Case-insensitive gender match
+      participantFilter.gender = new RegExp(`^${gender}$`, 'i');
     }
 
     const matchingParticipants = await Participant.find(participantFilter).select('_id');
@@ -90,7 +92,7 @@ async function buildResponseQueryAndResults(queryParams = {}) {
     if (condition || gender) {
       const scopedParticipantFilter = {};
       if (condition) scopedParticipantFilter.condition = condition;
-      if (gender) scopedParticipantFilter.gender = gender.toLowerCase();
+      if (gender) scopedParticipantFilter.gender = new RegExp(`^${gender}$`, 'i');
       const scopedParticipantIds = await Participant.find(scopedParticipantFilter).distinct('_id');
 
       if (matchingParticipantIds.length > 0) {
@@ -145,7 +147,7 @@ async function buildResponseQueryAndResults(queryParams = {}) {
       // Condition/gender filter without search or participantIndex
       const filterCriteria = {};
       if (condition) filterCriteria.condition = condition;
-      if (gender) filterCriteria.gender = gender.toLowerCase();
+      if (gender) filterCriteria.gender = new RegExp(`^${gender}$`, 'i');
       const matchingParticipantIds = await Participant.find(filterCriteria).distinct('_id');
       query.participant = { $in: matchingParticipantIds };
     }

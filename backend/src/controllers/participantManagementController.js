@@ -26,7 +26,8 @@ const getAllParticipants = async (req, res) => {
     }
 
     if (gender) {
-      query.gender = gender.toLowerCase();
+      // Case-insensitive gender match to handle both "Male"/"male" and "Female"/"female"
+      query.gender = new RegExp(`^${gender}$`, 'i');
     }
     
     if (search) {
