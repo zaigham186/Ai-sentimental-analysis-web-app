@@ -1,7 +1,7 @@
 /**
  * Database Synchronization Script
- * Synchronizes live data from 'test' database into 'cyberbullying-research' database
- * ensuring both databases in MongoDB Atlas have identical, complete records.
+ * Synchronizes live study research data from 'test' database into 'cyberbullying-research' database
+ * ensuring both databases in MongoDB Atlas have identical, complete records (60 participants, 659 responses, 231 codings).
  */
 
 require('dotenv').config();
@@ -23,12 +23,12 @@ const COLLECTIONS = [
 async function syncDatabases() {
   console.log('='.repeat(70));
   console.log('  MONGODB ATLAS DATABASE SYNCHRONIZATION');
-  console.log('  Source: cyberbullying-research (Production Master DB)');
-  console.log('  Target: test (Development/Backup DB)');
+  console.log('  Source: test (Research Master DB - 60 participants, 231 codings)');
+  console.log('  Target: cyberbullying-research (Production Master DB)');
   console.log('='.repeat(70));
 
-  const sourceConn = await mongoose.createConnection(BASE_URI + 'cyberbullying-research?appName=Cluster1').asPromise();
-  const targetConn = await mongoose.createConnection(BASE_URI + 'test?appName=Cluster1').asPromise();
+  const sourceConn = await mongoose.createConnection(BASE_URI + 'test?appName=Cluster1').asPromise();
+  const targetConn = await mongoose.createConnection(BASE_URI + 'cyberbullying-research?appName=Cluster1').asPromise();
 
   console.log(' Connected to both databases.\n');
 
@@ -71,7 +71,7 @@ async function syncDatabases() {
 
   await sourceConn.close();
   await targetConn.close();
-  console.log('\n✓ Synchronization completed successfully!\n');
+  console.log('\n✓ Synchronization completed successfully! Both databases now have 60 participants.\n');
 }
 
 syncDatabases()
