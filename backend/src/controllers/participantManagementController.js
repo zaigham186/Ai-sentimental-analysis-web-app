@@ -36,9 +36,13 @@ const getAllParticipants = async (req, res) => {
       query.$or = [
         { name: searchRegex },
         { username: searchRegex },
-        { department: searchRegex },
-        { gender: searchRegex }
+        { department: searchRegex }
       ];
+      
+      const lowerSearch = search.trim().toLowerCase();
+      if (['male', 'female', 'other', 'prefer not to say'].includes(lowerSearch)) {
+        query.$or.push({ gender: new RegExp(`^${search.trim().replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}$`, 'i') });
+      }
     }
 
     const participants = await Participant.find(query)

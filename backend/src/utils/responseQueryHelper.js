@@ -66,15 +66,19 @@ async function buildResponseQueryAndResults(queryParams = {}) {
     const escapedSearch = trimmedSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const searchRegex = new RegExp(escapedSearch, 'i');
 
-    // Search by participant name, username, gender, or department
+    // Search by participant name, username, or department
     const participantFilter = {
       $or: [
         { name: searchRegex },
         { username: searchRegex },
-        { gender: searchRegex },
         { department: searchRegex }
       ]
     };
+    
+    const lowerSearch = trimmedSearch.toLowerCase();
+    if (['male', 'female', 'other', 'prefer not to say'].includes(lowerSearch)) {
+      participantFilter.$or.push({ gender: new RegExp(`^${escapedSearch}$`, 'i') });
+    }
 
     if (condition) {
       participantFilter.condition = condition;
