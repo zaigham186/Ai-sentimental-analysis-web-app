@@ -78,6 +78,18 @@ app.use(logger);
 // Rate limiting
 app.use('/api', limiter);
 
+// Friendly root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Cyberbullying Research Platform API is online and running',
+    environment: config.nodeEnv,
+    version: '1.0.0',
+    healthCheck: '/api/health',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // API Routes
 app.use('/api', routes);
 

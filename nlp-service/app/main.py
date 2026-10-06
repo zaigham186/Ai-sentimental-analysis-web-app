@@ -1,6 +1,6 @@
 """
 Research NLP Service - Main FastAPI Application
-Fixed for FastAPI 0.141.1 using modern lifespan pattern
+Version: 1.0.1 - Production Sync Build
 """
 
 from contextlib import asynccontextmanager
