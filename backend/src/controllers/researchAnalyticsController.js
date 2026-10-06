@@ -155,7 +155,6 @@ class ResearchAnalyticsController {
   async exportXLSX(req, res) {
     try {
       const report = await researchAnalyticsService.getSupervisorReport(req.query);
-      const responsesTable = await researchAnalyticsService.getResponsesTable(req.query, { limit: 1000 });
 
       const wb = xlsx.utils.book_new();
 
@@ -178,29 +177,11 @@ class ResearchAnalyticsController {
       const wsSummary = xlsx.utils.aoa_to_sheet(summaryRows);
       xlsx.utils.book_append_sheet(wb, wsSummary, 'Summary');
 
-      // Sheet 2: Responses & Final Coding
-      const responseRows = [
-        ['Response ID', 'Condition', 'Video Order', 'Video Title', 'Final Sentiment', 'Final Aggression Category', 'Final Aggression Level', 'Final Cyberbullying', 'Final CB Type', 'AI Sentiment', 'AI Aggression', 'AI Cyberbullying', 'Review Status', 'Review Action']
-      ];
-      responsesTable.rows.forEach(r => {
-        responseRows.push([
-          r.responseId ? r.responseId.toString() : '',
-          r.condition,
-          r.videoOrder,
-          r.videoTitle,
-          r.finalCoding.sentiment,
-          r.finalCoding.aggressionCategory,
-          r.finalCoding.aggressionLevel,
-          r.finalCoding.cyberbullyingPresent !== null ? (r.finalCoding.cyberbullyingPresent ? 'Yes' : 'No') : '',
-          r.finalCoding.cyberbullyingType,
-          r.aiSuggestion.sentiment,
-          r.aiSuggestion.aggression,
-          r.aiSuggestion.cyberbullying !== null ? (r.aiSuggestion.cyberbullying ? 'Yes' : 'No') : '',
-          r.reviewStatus,
-          r.reviewAction || ''
-        ]);
-      });
-      const wsResponses = xlsx.utils.aoa_to_sheet(responseRows);
+      // Sheet 2: Responses & Final Coding (ALL records, Participant Name + Condition first, NO IDs)
+      const exportRows = await researchAnalyticsService.getExportRows(req.query);
+      const wsResponses = exportRows.length > 0
+        ? xlsx.utils.json_to_sheet(exportRows)
+        : xlsx.utils.aoa_to_sheet([['Participant Name', 'Condition', 'Video Number', 'Video Title', 'Response Text', 'Sentiment', 'Aggression Category', 'Aggression Level (0-10)', 'Cyberbullying Present', 'Cyberbullying Type', 'AI Sentiment', 'AI Aggression', 'AI Cyberbullying', 'Review Status', 'Submitted Date']]);
       xlsx.utils.book_append_sheet(wb, wsResponses, 'Coding Dataset');
 
       // Sheet 3: AI vs Human Agreement

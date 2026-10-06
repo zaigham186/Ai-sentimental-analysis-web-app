@@ -51,7 +51,7 @@ const convertToCSV = (data, headers) => {
     }).join(',');
   });
   
-  return headerLine + '\n' + rows.join('\n');
+  return '\uFEFF' + headerLine + '\n' + rows.join('\n');
 };
 
 // Helper: Convert array of objects to Excel buffer

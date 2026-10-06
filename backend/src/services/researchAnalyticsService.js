@@ -677,74 +677,96 @@ class ResearchAnalyticsService {
   }
 
   /**
-   * Generates CSV format for research exports
-   * @param {Object} filters 
-   * @returns {Promise<string>}
+   * Builds clean, ID-free export rows (ALL records, no pagination).
+   * Every row starts with Participant Name, then Condition.
+   * Sorted by Condition -> Participant Name -> Video Number.
+   * @param {Object} filters
+   * @returns {Promise<Array<Object>>}
    */
-  async generateCSV(filters = {}) {
+  async getExportRows(filters = {}) {
     const { codingQuery, responseQuery, activeFilters } = this.buildFilterQuery(filters);
     const eligibleResponseIds = await this.resolveEligibleResponseIds(responseQuery, activeFilters.condition);
 
     const codings = await Coding.find({
       ...codingQuery,
+      coderRole: 'primary',
       response: { $in: eligibleResponseIds }
     }).populate({
       path: 'response',
       select: 'responseText participant video submittedAt',
       populate: [
-        { path: 'participant', select: 'username condition' },
+        { path: 'participant', select: 'name condition' },
         { path: 'video', select: 'title order' }
       ]
+    }).lean();
+
+    const cap = (v) => {
+      if (v === null || v === undefined || v === '') return '';
+      const s = String(v).replace(/_/g, ' ').trim();
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    };
+    const yesNo = (v) => (v === null || v === undefined ? '' : (v ? 'Yes' : 'No'));
+    const fmtDate = (d) => {
+      if (!d) return '';
+      const x = new Date(d);
+      if (isNaN(x.getTime())) return '';
+      const p = (n) => String(n).padStart(2, '0');
+      return `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())} ${p(x.getHours())}:${p(x.getMinutes())}`;
+    };
+
+    // Only keep records that belong to a real, existing participant
+    const valid = codings.filter(c => c.response && c.response.participant && c.response.participant.name);
+
+    valid.sort((a, b) => {
+      const ca = (a.response.participant.condition || '').toLowerCase();
+      const cb = (b.response.participant.condition || '').toLowerCase();
+      if (ca !== cb) return ca.localeCompare(cb);
+      const na = a.response.participant.name.toLowerCase();
+      const nb = b.response.participant.name.toLowerCase();
+      if (na !== nb) return na.localeCompare(nb);
+      return (a.response.video?.order ?? 999) - (b.response.video?.order ?? 999);
     });
 
-    const headers = [
-      'response_id',
-      'condition',
-      'video_order',
-      'video_title',
-      'final_sentiment',
-      'final_aggression_category',
-      'final_aggression_level',
-      'final_cyberbullying_present',
-      'final_cyberbullying_type',
-      'ai_sentiment',
-      'ai_aggression_category',
-      'ai_cyberbullying_present',
-      'review_status',
-      'review_action',
-      'submitted_at'
+    return valid.map(c => ({
+      'Participant Name': c.response.participant.name,
+      'Condition': cap(c.response.participant.condition),
+      'Video Number': c.response.video?.order ?? '',
+      'Video Title': c.response.video?.title || '',
+      'Response Text': c.response.responseText || '',
+      'Sentiment': cap(c.sentiment),
+      'Aggression Category': cap(c.aggression?.category),
+      'Aggression Level (0-10)': c.aggression?.level ?? '',
+      'Cyberbullying Present': yesNo(c.cyberbullying?.present),
+      'Cyberbullying Type': cap(c.cyberbullying?.type),
+      'AI Sentiment': cap(c.aiCoding?.sentiment?.label),
+      'AI Aggression': cap(c.aiCoding?.aggression?.label),
+      'AI Cyberbullying': yesNo(c.aiCoding?.cyberbullying?.present),
+      'Review Status': cap(c.reviewStatus),
+      'Submitted Date': fmtDate(c.response.submittedAt)
+    }));
+  }
+
+  /**
+   * Generates CSV format for research exports (ID-free, name-first)
+   * @param {Object} filters 
+   * @returns {Promise<string>}
+   */
+  async generateCSV(filters = {}) {
+    const rows = await this.getExportRows(filters);
+    const headers = rows.length > 0 ? Object.keys(rows[0]) : [
+      'Participant Name', 'Condition', 'Video Number', 'Video Title', 'Response Text',
+      'Sentiment', 'Aggression Category', 'Aggression Level (0-10)', 'Cyberbullying Present',
+      'Cyberbullying Type', 'AI Sentiment', 'AI Aggression', 'AI Cyberbullying',
+      'Review Status', 'Submitted Date'
     ];
-
-    const lines = [headers.join(',')];
-
-    codings.forEach(c => {
-      const escape = (val) => {
-        if (val === null || val === undefined) return '';
-        const str = String(val).replace(/"/g, '""');
-        return `"${str}"`;
-      };
-
-      const row = [
-        escape(c.response?._id),
-        escape(c.response?.participant?.condition),
-        escape(c.response?.video?.order),
-        escape(c.response?.video?.title),
-        escape(c.sentiment),
-        escape(c.aggression?.category),
-        escape(c.aggression?.level),
-        escape(c.cyberbullying?.present),
-        escape(c.cyberbullying?.type),
-        escape(c.aiCoding?.sentiment?.label),
-        escape(c.aiCoding?.aggression?.label),
-        escape(c.aiCoding?.cyberbullying?.present),
-        escape(c.reviewStatus),
-        escape(c.reviewAction),
-        escape(c.response?.submittedAt?.toISOString())
-      ];
-      lines.push(row.join(','));
-    });
-
-    return lines.join('\n');
+    const escape = (val) => {
+      if (val === null || val === undefined) return '""';
+      return `"${String(val).replace(/"/g, '""')}"`;
+    };
+    const lines = [headers.map(escape).join(',')];
+    rows.forEach(r => lines.push(headers.map(h => escape(r[h])).join(',')));
+    // BOM so Excel shows Urdu/emoji text correctly
+    return '\uFEFF' + lines.join('\n');
   }
 
   /**
