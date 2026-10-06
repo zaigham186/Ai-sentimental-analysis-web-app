@@ -154,6 +154,7 @@ async function fetchAPI(endpoint: string, options: RequestOptions = {}) {
     ...options,
     headers: requestHeaders,
     credentials: 'include', // Include cookies for session management
+    cache: 'no-store', // CRITICAL: Prevent Next.js and browser from caching API responses
   };
 
   // Stringify body if it's an object

@@ -130,6 +130,10 @@ class ResearchAnalyticsController {
     try {
       const csvData = await researchAnalyticsService.generateCSV(req.query);
       const timestamp = new Date().toISOString().slice(0, 10);
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="research_coding_dataset_${timestamp}.csv"`);
       res.send(csvData);
@@ -211,6 +215,10 @@ class ResearchAnalyticsController {
 
       const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
       const timestamp = new Date().toISOString().slice(0, 10);
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="research_analytics_${timestamp}.xlsx"`);
       res.send(buffer);
